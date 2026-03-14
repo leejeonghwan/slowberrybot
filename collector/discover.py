@@ -83,19 +83,27 @@ KEYWORD_MAP = {
 
 
 def discover_endpoints(rows: list[dict]) -> dict:
-    """API 목록에서 키워드 매칭으로 endpoint를 자동 분류"""
+    """API 목록에서 키워드 매칭으로 endpoint를 자동 분류
+    
+    실제 API 응답 필드명:
+    - INF_ID: API ID
+    - INF_NM: API 이름
+    - INF_EXP: API 설명
+    - CATE_NM: 카테고리
+    """
     import re
     result = {}
 
     for row in rows:
-        api_name = row.get("SRVC_NM", "") or row.get("API_NM", "") or ""
-        api_desc = row.get("SRVC_DC", "") or row.get("API_DC", "") or ""
-        api_id = row.get("SRVC_ID", "") or row.get("API_ID", "") or ""
+        # 실제 응답 필드명
+        api_name = row.get("INF_NM", "") or ""
+        api_desc = row.get("INF_EXP", "") or ""
+        api_id = row.get("INF_ID", "") or ""
         combined = api_name + " " + api_desc
 
         for category, keywords in KEYWORD_MAP.items():
             for kw in keywords:
-                if re.search(kw, combined):
+                if re.search(kw, combined, re.IGNORECASE):
                     if category not in result:
                         result[category] = []
                     result[category].append({
