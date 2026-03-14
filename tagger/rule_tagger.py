@@ -158,6 +158,16 @@ TONE_COOPERATIVE_WORDS = re.compile(
 )
 
 
+# ── PERSON 오탐 블랙리스트 ──
+# "지역구 의원", "비례 대표" 등 사람 이름이 아닌 일반 명사
+PERSON_BLACKLIST = {
+    "지역구", "비례", "광역", "기초", "각각", "해당", "관련", "소관",
+    "여당", "야당", "여야", "정부", "우리", "본인", "저희", "그것",
+    "이것", "여기", "거기", "어디", "무엇", "그분", "이분", "어느",
+    "모든", "다른", "일부", "전체", "상임", "특별", "예결",
+    "국회", "의회", "위원", "간사", "의원님", "선생님",
+}
+
 # ── 명명 개체(named entity) 패턴 ──
 ENTITY_PATTERNS = {
     "LAW": re.compile(r'(?:「|「)([^」」]+)(?:」|」)'),  # 「법률명」
@@ -172,7 +182,10 @@ ENTITY_PATTERNS = {
         r'한국은행|금융감독원|국민연금|건강보험공단)'
     ),
     "PROGRAM": re.compile(r'([가-힣]+(사업|정책|제도|프로그램|대책|방안|계획|로드맵))'),
-    "PERSON": re.compile(r'([가-힣]{2,4})\s*(대통령|총리|장관|차관|위원장|의원|대표)'),
+    "PERSON": re.compile(
+        r'(?<![가-힣])([가-힣]{2,4})\s*(대통령|총리|장관|차관|위원장|의원|대표)'
+        r'(?!\s*(선거|비례|지역|광역|기초))'  # 오탐 방지
+    ),
 }
 
 
@@ -333,6 +346,12 @@ class RuleTagger:
         return None
 
     def _upsert_entity(self, clause_id: int, entity_type: str, entity_text: str):
+        # PERSON 오탐 필터링
+        if entity_type == "PERSON" and entity_text in PERSON_BLACKLIST:
+            return
+        # 1글자 entity 무시
+        if len(entity_text.strip()) <= 1:
+            return
         self.conn.execute("""
             INSERT OR IGNORE INTO clause_entity (clause_id, entity_type, entity_text)
             VALUES (?, ?, ?)
