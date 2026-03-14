@@ -151,7 +151,7 @@ class ContentFetcher:
 
     def _parse_speaker_block(self, div, seq: int) -> SpeakerBlock | None:
         """개별 speaker div에서 발언 정보 추출"""
-        block = SpeakerBlock(sequence_no=seq)
+        block = SpeakerBlock(sequence_no=seq, speaker_name="")
 
         # CSS 클래스에서 speaker 유형 파악
         classes = div.get("class", [])
