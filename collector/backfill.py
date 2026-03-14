@@ -36,6 +36,17 @@ logger = logging.getLogger(__name__)
 
 ASSEMBLY_ID = 22  # 22대 국회
 
+# ── 확인된 API 서비스코드 ──
+KNOWN_ENDPOINTS = {
+    "본회의_회의록": "nzbyfwhwaoanttzje",
+    "위원회_회의록": "ncwgseseafwbuheph",
+    "의원_정보": "nwvrqwxyaytdsfvhu",
+    "법안_정보": "nayjnliqaexiioauy",
+}
+
+# ── 회의록 수집 기간 (연도별) ──
+CONF_DATE_YEARS = ["2024", "2025", "2026"]
+
 # ── 진행 상황 파일 ──
 PROGRESS_FILE = DB_PATH.parent / "backfill_progress.json"
 
@@ -265,37 +276,38 @@ class BackfillCollector:
         """22대 의원 정보 수집 → member 테이블"""
         self.notify("👤 **Phase 2: 의원 정보 수집**")
 
-        endpoints = self._get_endpoints(endpoint_map, "의원_정보")
+        endpoint = KNOWN_ENDPOINTS.get("의원_정보")
+        if not endpoint:
+            self.notify("❌ 의원_정보 엔드포인트 미발견")
+            return 0
+
+        rows = self._fetch_all(
+            endpoint,
+            label="의원 정보 (22대)"
+        )
+        self._save_raw("members", rows)
         count = 0
 
-        for api in endpoints:
-            rows = self._fetch_all(
-                api["id"],
-                extra_params={"AGE": str(ASSEMBLY_ID)},
-                label=f"의원/{api['name']}"
-            )
-            self._save_raw("members", rows)
+        for row in rows:
+            member_id = (row.get("MONA_CD") or row.get("NAAS_CD") or
+                        row.get("MEMBER_ID") or row.get("NUM") or "")
+            name = (row.get("HG_NM") or row.get("EMPNM") or
+                   row.get("MEMBER_NAME") or "")
+            if not name:
+                continue
 
-            for row in rows:
-                member_id = (row.get("MONA_CD") or row.get("NAAS_CD") or
-                            row.get("MEMBER_ID") or row.get("NUM") or "")
-                name = (row.get("HG_NM") or row.get("EMPNM") or
-                       row.get("MEMBER_NAME") or "")
-                if not name:
-                    continue
-
-                party = row.get("POLY_NM") or row.get("PLYNM") or ""
-                self.conn.execute("""
-                    INSERT OR REPLACE INTO member
-                        (member_id, name, party, district, elected_count)
-                    VALUES (?, ?, ?, ?, ?)
-                """, (
-                    str(member_id) or name,
-                    name, party,
-                    row.get("ORIG_NM") or row.get("ELECD") or "",
-                    row.get("GTELT_ERACO") or row.get("REELE_GBN_NM") or None,
-                ))
-                count += 1
+            party = row.get("POLY_NM") or row.get("PLYNM") or ""
+            self.conn.execute("""
+                INSERT OR REPLACE INTO member
+                    (member_id, name, party, district, elected_count)
+                VALUES (?, ?, ?, ?, ?)
+            """, (
+                str(member_id) or name,
+                name, party,
+                row.get("ORIG_NM") or row.get("ELECD") or "",
+                row.get("GTELT_ERACO") or row.get("REELE_GBN_NM") or None,
+            ))
+            count += 1
 
         self.conn.commit()
         self.notify(f"✅ 의원 {count:,}명 적재 완료")
@@ -339,37 +351,50 @@ class BackfillCollector:
     # ═══════════════════════════════════
 
     def phase4_meetings(self, endpoint_map: dict = None) -> int:
+        """본회의 + 위원회 회의 목록 수집 (연도별 분할)"""
         self.notify("📋 **Phase 4: 회의 목록 수집 (본회의 + 위원회)**")
 
         count = 0
-        for cat in ["회의_정보", "회의록_본회의", "회의록_위원회"]:
-            endpoints = self._get_endpoints(endpoint_map, cat)
-            for api in endpoints:
-                rows = self._fetch_all(
-                    api["id"],
-                    extra_params={"AGE": str(ASSEMBLY_ID)},
-                    label=f"회의/{api['name']}"
+        
+        # 본회의 + 위원회 (연도별 분할 호출)
+        for meeting_type_key in ["본회의_회의록", "위원회_회의록"]:
+            endpoint = KNOWN_ENDPOINTS.get(meeting_type_key)
+            if not endpoint:
+                logger.warning(f"엔드포인트 미발견: {meeting_type_key}")
+                continue
+            
+            meeting_type = "본회의" if "본회의" in meeting_type_key else "위원회"
+            
+            for year in CONF_DATE_YEARS:
+                all_rows = self._fetch_all(
+                    endpoint,
+                    extra_params={
+                        "DAE_NUM": str(ASSEMBLY_ID),
+                        "CONF_DATE": year
+                    },
+                    label=f"{meeting_type} {year}년"
                 )
-                self._save_raw(f"meetings_{cat}", rows)
-
-                for row in rows:
+                self._save_raw(f"meetings_{meeting_type}_{year}", all_rows)
+                
+                for row in all_rows:
+                    # 회의 ID (여러 필드 조합)
                     mid = (row.get("CONF_ID") or row.get("CT_ID") or
                           row.get("MEETING_ID") or row.get("CONFER_NUM") or
                           f"{row.get('UNIT_CD','')}-{row.get('CONF_DT','')}-{row.get('CONF_MEET_CNT','')}")
 
+                    # 회의 날짜
                     meeting_date = (row.get("CONF_DT") or row.get("MTG_DT") or
                                   row.get("MEETING_DATE") or "")
                     if meeting_date:
                         meeting_date = meeting_date[:10]
 
-                    meeting_type = "본회의" if "본회의" in cat else "위원회"
+                    # 위원회 정보
                     committee = (row.get("UNIT_CD") or row.get("CMIT_CD") or
                                row.get("UNIT_NM") or row.get("CMIT_NM") or "")
 
-                    # 회의록 본문 URL/경로가 있을 수 있음
+                    # 회의록 본문 URL/경로
                     content_url = (row.get("CONF_CNTNT_URL") or row.get("LINK_URL") or
                                  row.get("DET_LINK_URL") or "")
-                    # 회의록 본문이 직접 포함된 경우
                     raw_text = row.get("CONF_CNTNT") or row.get("MEETING_CONTENT") or ""
 
                     self.conn.execute("""
@@ -389,7 +414,7 @@ class BackfillCollector:
                         content_url or None,
                     ))
 
-                    # 본문이 직접 포함된 경우 바로 파싱 큐에 저장
+                    # 본문이 직접 포함된 경우 파싱 대기
                     if raw_text and len(raw_text) > 100:
                         text_path = RAW_DIR / f"text_{mid}.txt"
                         text_path.write_text(raw_text, encoding="utf-8")
@@ -411,40 +436,42 @@ class BackfillCollector:
     def phase5_bills(self, endpoint_map: dict = None) -> int:
         self.notify("📜 **Phase 5: 법안/의안 수집**")
 
+        endpoint = KNOWN_ENDPOINTS.get("법안_정보")
+        if not endpoint:
+            self.notify("❌ 법안_정보 엔드포인트 미발견")
+            return 0
+
+        rows = self._fetch_all(
+            endpoint,
+            extra_params={"AGE": str(ASSEMBLY_ID)},
+            label="법안 정보 (22대)"
+        )
+        self._save_raw("bills", rows)
+
         count = 0
-        for cat in ["법안_발의", "법안_심사"]:
-            endpoints = self._get_endpoints(endpoint_map, cat)
-            for api in endpoints:
-                rows = self._fetch_all(
-                    api["id"],
-                    extra_params={"AGE": str(ASSEMBLY_ID)},
-                    label=f"법안/{api['name']}"
-                )
-                self._save_raw(f"bills_{cat}", rows)
+        for row in rows:
+            aid = (row.get("BILL_NO") or row.get("BILL_ID") or
+                  row.get("AGENDA_ID") or "")
+            title = (row.get("BILL_NAME") or row.get("BILL_NM") or
+                    row.get("TITLE") or "")
+            if not title:
+                continue
 
-                for row in rows:
-                    aid = (row.get("BILL_NO") or row.get("BILL_ID") or
-                          row.get("AGENDA_ID") or "")
-                    title = (row.get("BILL_NAME") or row.get("BILL_NM") or
-                            row.get("TITLE") or "")
-                    if not title:
-                        continue
-
-                    self.conn.execute("""
-                        INSERT OR REPLACE INTO agenda
-                            (agenda_id, agenda_type, title, proposer,
-                             propose_date, committee_id, status)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                    """, (
-                        str(aid),
-                        row.get("BILL_KIND") or row.get("BILL_KIND_CD") or "법안",
-                        title,
-                        row.get("PROPOSER") or row.get("PUBL_PROPOSER") or row.get("RST_PROPOSER") or "",
-                        row.get("PROPOSE_DT") or row.get("PPSL_DT") or "",
-                        row.get("CMIT_NM") or row.get("CURR_CMIT") or "",
-                        row.get("PROC_RESULT") or row.get("RGS_PROC_RESULT_CD") or "",
-                    ))
-                    count += 1
+            self.conn.execute("""
+                INSERT OR REPLACE INTO agenda
+                    (agenda_id, agenda_type, title, proposer,
+                     propose_date, committee_id, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (
+                str(aid),
+                row.get("BILL_KIND") or row.get("BILL_KIND_CD") or "법안",
+                title,
+                row.get("PROPOSER") or row.get("PUBL_PROPOSER") or row.get("RST_PROPOSER") or "",
+                row.get("PROPOSE_DT") or row.get("PPSL_DT") or "",
+                row.get("CMIT_NM") or row.get("CURR_CMIT") or "",
+                row.get("PROC_RESULT") or row.get("RGS_PROC_RESULT_CD") or "",
+            ))
+            count += 1
 
         self.conn.commit()
         self.notify(f"✅ 법안/의안 {count:,}건 적재 완료")
