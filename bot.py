@@ -241,20 +241,20 @@ class Orchestrator:
         tagger.close()
         return f"✅ LLM 태깅 완료: {json.dumps(stats, ensure_ascii=False)}"
 
-    def aggregate(self, year_week: str = None) -> str:
+    def aggregate(self, year_week: str = None, notify_fn=None) -> str:
+        """주간 feature 집계. year_week 없으면 전체 기간 집계."""
         from features.weekly_aggregator import WeeklyAggregator
-        agg = WeeklyAggregator()
+        agg = WeeklyAggregator(notify_fn=notify_fn or (lambda m: None))
 
         if year_week:
             stats = agg.aggregate_week(year_week)
         else:
-            end = datetime.now()
-            start = end - timedelta(weeks=4)
-            stats = agg.aggregate_range(
-                start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d")
-            )
+            stats = agg.aggregate_all()
         agg.close()
-        return f"✅ Feature 집계 완료: {json.dumps(stats, ensure_ascii=False)}"
+        return (
+            f"✅ **Feature 집계 완료**\n"
+            f"{stats.get('weeks', 0)}주 / feature {stats.get('rows_created', 0):,}개"
+        )
 
     def detect(self, year_week: str = None) -> str:
         from detector.signal_detector import SignalDetector
