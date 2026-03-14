@@ -18,28 +18,24 @@ API_PAGE_SIZE = 100          # 한 번에 가져올 건수
 API_SLEEP_SEC = 0.5          # 호출 간 대기 (서버 부담 방지)
 
 # ── API 엔드포인트 목록 ──
-# 2025년 개편 이후 분리된 endpoint 구조
+# 열린국회정보 API (infId → 서비스코드 매핑)
 ENDPOINTS = {
     # 1) 전체 API 서비스 목록 (endpoint 자동 탐색용)
     "api_list":         "OPENSRVAPI",
 
-    # 2) 회의 관련
-    "conf_plenary":     "nwbpacrgavhjryiph",   # 본회의 회의정보 (추정, 탐색 후 교체)
-    "conf_committee":   "nzmimeepazxkubdpn",   # 위원회 회의정보 (추정, 탐색 후 교체)
+    # 2) 회의 관련 (확정)
+    "conf_plenary":     "nzbyfwhwaoanttzje",   # 본회의 회의록 (OO1X9P001017YF13038)
+    "conf_committee":   "ncwgseseafwbuheph",   # 위원회 회의록 (OR137O001023MZ19321)
 
     # 3) 법안/의안
-    "bill_propose":     "nzmimeepazxkubdpn",   # 의원발의법률안
-    "bill_status":      "nknalejkafmcgpoqr",   # 법률안 심사 및 처리 (추정)
-    "vote_result":      "nojepdqqaweusdfbi",   # 의안별 표결현황 (추정)
-    "vote_member":      "nwvrqwxyaytdsfvhu",   # 의원 본회의 표결정보 (추정)
+    "bill_status":      "nayjnliqaexiioauy",   # 법률안 심사 (OBV24T000974AX17644)
 
-    # 4) 의원 정보
-    "member_current":   "nwvrqwxyaytdsfvhu",   # 현역 의원 (추정)
+    # 4) 의원 정보 (확정)
+    "member_current":   "nwvrqwxyaytdsfvhu",   # 의원 인적사항 (OWSSC6001134T516707)
+
+    # 5) 표결 정보 (확정)
+    "vote_member":      "nojepdqqaweusdfbi",   # 의원 표결정보 (OPR1MQ000998LC12535)
 }
-
-# ※ 위 endpoint ID는 추정치.
-# 첫 실행 시 OPENSRVAPI로 전체 목록을 받아서
-# 실제 endpoint를 자동 매핑하는 discover 단계를 거칩니다.
 
 # ── 라즈베리파이5 리소스 제한 ──
 MAX_WORKERS = 2              # 동시 처리 스레드 (Pi5 4코어 중 2개만)
