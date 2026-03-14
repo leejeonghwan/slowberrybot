@@ -6,9 +6,14 @@ Step 2: 발언 파싱/정규화
 - 절(clause) 단위 분할
 - 절차 발언 필터링 (rule-based)
 
+입력 소스 2가지:
+  1) plain text (구 시스템, ◯ 마커 기반)
+  2) HTML 파싱된 JSON (content_fetcher.py가 생성한 speaker_blocks)
+
 Pi5에서 전부 로컬로 처리. LLM 호출 없음.
 """
 import re
+import json
 import sqlite3
 import logging
 from dataclasses import dataclass, field
@@ -203,6 +208,46 @@ class UtteranceParser:
 
         return merged if merged else [text]
 
+    def parse_html_json(self, json_path: str | Path) -> list[ParsedUtterance]:
+        """
+        content_fetcher.py가 생성한 JSON 파일에서 발언 파싱.
+        HTML 기반이므로 발언자·역할이 이미 구조화되어 있음.
+        여기서는 절차 판별, clause 분할만 수행.
+        """
+        with open(json_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        return self.parse_speaker_blocks(data.get("speaker_blocks", []))
+
+    def parse_speaker_blocks(self, blocks: list[dict]) -> list[ParsedUtterance]:
+        """
+        speaker_blocks 리스트 → ParsedUtterance 리스트.
+        content_fetcher 결과를 직접 받을 때 사용.
+        """
+        utterances = []
+        for block in blocks:
+            name = block.get("speaker_name", "").strip()
+            if not name:
+                continue
+
+            role_raw = block.get("speaker_role", "")
+            role = ROLE_MAP.get(role_raw, role_raw)
+            text = block.get("text", "").strip()
+            if not text:
+                continue
+
+            utt = ParsedUtterance(
+                sequence_no=block.get("sequence_no", len(utterances) + 1),
+                speaker_name=name,
+                speaker_role=role,
+                raw_text=text,
+                is_procedural=self._is_procedural(text),
+                clauses=self._split_clauses(text),
+            )
+            utterances.append(utt)
+
+        return utterances
+
     def extract_qa_pairs(self, utterances: list[ParsedUtterance]) -> list[QAPair]:
         """발언 시퀀스에서 질의-답변 쌍 복원"""
         pairs = []
@@ -253,9 +298,16 @@ class MeetingProcessor:
         self.conn = sqlite3.connect(str(DB_PATH))
         self.parser = UtteranceParser()
 
-    def process_meeting(self, meeting_id: str, raw_text: str) -> dict:
-        """회의 원문 → 발언/절/Q&A 파싱 → DB 적재"""
-        utterances = self.parser.parse_text(raw_text)
+    def process_meeting(self, meeting_id: str, raw_text: str = "",
+                        json_path: str = "") -> dict:
+        """
+        회의 원문 → 발언/절/Q&A 파싱 → DB 적재.
+        json_path가 주어지면 HTML 파싱된 JSON에서, 아니면 plain text에서 파싱.
+        """
+        if json_path and Path(json_path).exists() and json_path.endswith(".json"):
+            utterances = self.parser.parse_html_json(json_path)
+        else:
+            utterances = self.parser.parse_text(raw_text)
         qa_pairs = self.parser.extract_qa_pairs(utterances)
 
         # DB 적재

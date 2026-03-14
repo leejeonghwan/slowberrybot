@@ -14,7 +14,8 @@
   /detect [주]    - 신호 탐지
   /report [주]    - 주간 리포트 생성/전송
   /signals [N]    - 최근 상위 신호 N개 조회
-  /backfill [phase] - 22대 국회 전체 백필 (phase: 1~6, 없으면 전체)
+  /content_fetch [N] - 회의록 본문 HTML 수집 (N건, 없으면 전체)
+  /backfill [phase] - 22대 국회 전체 백필 (phase: 1~7, 없으면 전체)
   /backfill_status  - 백필 진행 상황 확인
   /pipeline       - 전체 파이프라인 실행 (수집→파싱→태깅→집계→탐지→리포트)
   /help           - 도움말
@@ -138,6 +139,19 @@ class Orchestrator:
         collector.close()
         return status
 
+    def content_fetch(self, limit: int = 0, notify_fn=None) -> str:
+        """회의록 본문 HTML 수집 (Phase 7)"""
+        from collector.content_fetcher import ContentFetcher
+        fetcher = ContentFetcher(notify_fn=notify_fn or (lambda m: None))
+        stats = fetcher.fetch_batch(limit=limit, skip_existing=True)
+        fetcher.close()
+        return (
+            f"📖 **회의록 본문 수집 완료**\n"
+            f"수집: {stats['collected']:,}건 / "
+            f"건너뜀: {stats['skipped']:,}건 / "
+            f"오류: {stats['errors']:,}건"
+        )
+
     def collect(self, targets: list[str] = None) -> str:
         from collector.fetch import run as collect_run
         results = collect_run(targets)
@@ -162,8 +176,11 @@ class Orchestrator:
             if text and text[0]:
                 raw_path = Path(text[0])
                 if raw_path.exists():
-                    raw_text = raw_path.read_text(encoding="utf-8")
-                    stats = proc.process_meeting(meeting_id, raw_text)
+                    if str(raw_path).endswith(".json"):
+                        stats = proc.process_meeting(meeting_id, json_path=str(raw_path))
+                    else:
+                        raw_text = raw_path.read_text(encoding="utf-8")
+                        stats = proc.process_meeting(meeting_id, raw_text=raw_text)
                     proc.close()
                     return f"✅ 파싱 완료: {json.dumps(stats, ensure_ascii=False)}"
             proc.close()
@@ -183,8 +200,11 @@ class Orchestrator:
             total = {"meetings": 0, "utterances": 0}
             for mid, rpath in unprocessed:
                 if rpath and Path(rpath).exists():
-                    raw_text = Path(rpath).read_text(encoding="utf-8")
-                    stats = proc.process_meeting(mid, raw_text)
+                    if rpath.endswith(".json"):
+                        stats = proc.process_meeting(mid, json_path=rpath)
+                    else:
+                        raw_text = Path(rpath).read_text(encoding="utf-8")
+                        stats = proc.process_meeting(mid, raw_text=raw_text)
                     total["meetings"] += 1
                     total["utterances"] += stats.get("utterances", 0)
 
@@ -321,7 +341,7 @@ if HAS_TELEGRAM:
     async def cmd_backfill(update: Update, context: ContextTypes.DEFAULT_TYPE):
         """22대 국회 전체 백필. 진행 상황을 텔레그램으로 실시간 보고."""
         start = int(context.args[0]) if context.args else 1
-        end = int(context.args[1]) if len(context.args) > 1 else 6
+        end = int(context.args[1]) if len(context.args) > 1 else 7
         await update.message.reply_text(
             f"🚀 22대 국회 백필 시작 (Phase {start}~{end})...\n"
             f"진행 상황을 여기로 보고합니다."
@@ -359,6 +379,34 @@ if HAS_TELEGRAM:
     async def cmd_backfill_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
         msg = orch.backfill_status()
         await update.message.reply_text(msg, parse_mode="Markdown")
+
+    async def cmd_content_fetch(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """회의록 본문 HTML 수집 (Phase 7)"""
+        limit = int(context.args[0]) if context.args else 0
+        await update.message.reply_text(
+            f"📖 회의록 본문 수집 시작 (limit={limit or '전체'})..."
+        )
+
+        pending_messages = []
+        def sync_notify(msg):
+            pending_messages.append(msg)
+
+        import functools
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None,
+            functools.partial(orch.content_fetch, limit, sync_notify)
+        )
+
+        for msg in pending_messages:
+            try:
+                if len(msg) > 4000:
+                    msg = msg[:4000] + "..."
+                await update.message.reply_text(msg, parse_mode="Markdown")
+            except Exception:
+                await update.message.reply_text(msg)
+
+        await update.message.reply_text(result, parse_mode="Markdown")
 
     async def cmd_collect(update: Update, context: ContextTypes.DEFAULT_TYPE):
         targets = context.args if context.args else None
@@ -430,6 +478,7 @@ if HAS_TELEGRAM:
 /detect [주] - 신호 탐지
 /report [주] - 주간 리포트
 /signals [N] - 상위 신호 조회
+/content\\_fetch [N] - 회의록 본문 수집
 /backfill [phase] - 22대 전체 백필
 /backfill\\_status - 백필 진행 상황
 /pipeline - 전체 파이프라인
@@ -454,6 +503,7 @@ def run_bot():
     app.add_handler(CommandHandler("discover", cmd_discover))
     app.add_handler(CommandHandler("backfill", cmd_backfill))
     app.add_handler(CommandHandler("backfill_status", cmd_backfill_status))
+    app.add_handler(CommandHandler("content_fetch", cmd_content_fetch))
     app.add_handler(CommandHandler("collect", cmd_collect))
     app.add_handler(CommandHandler("parse", cmd_parse))
     app.add_handler(CommandHandler("tag_rule", cmd_tag_rule))
@@ -490,9 +540,12 @@ def run_cli():
         "discover": lambda: orch.discover(),
         "backfill": lambda: orch.backfill(
             int(args[0]) if args else 1,
-            int(args[1]) if len(args) > 1 else 6
+            int(args[1]) if len(args) > 1 else 7
         ),
         "backfill_status": lambda: orch.backfill_status(),
+        "content_fetch": lambda: orch.content_fetch(
+            int(args[0]) if args else 0
+        ),
         "collect": lambda: orch.collect(args if args else None),
         "parse": lambda: orch.parse(args[0] if args else None),
         "tag_rule": lambda: orch.tag_rule(),
