@@ -8,7 +8,8 @@
   /discover      - API 엔드포인트 자동 탐색
   /collect [대상] - 데이터 수집 (meetings/bills/votes/members/all)
   /parse [회의ID] - 회의록 파싱 (ID 없으면 미처리분 배치)
-  /tag_rule       - 규칙 기반 태깅 배치
+  /tag_rule [N]   - 규칙 기반 태깅 배치 (N건, 없으면 전체)
+  /tag_rule_stats - 규칙 태깅 통계 조회
   /tag_llm [N]    - LLM(Haiku) 태깅 배치 (N건, 기본 50)
   /aggregate [주] - Feature Store 집계 (주 미지정시 최근 4주)
   /detect [주]    - 신호 탐지
@@ -211,12 +212,27 @@ class Orchestrator:
             proc.close()
             return f"✅ 배치 파싱 완료: {total['meetings']}개 회의, {total['utterances']}개 발언"
 
-    def tag_rule(self) -> str:
+    def tag_rule(self, limit: int = 0, notify_fn=None) -> str:
+        """규칙 기반 태깅 (limit=0이면 전체, Pi5 장기 실행용)"""
+        from tagger.rule_tagger import RuleTagger
+        tagger = RuleTagger(notify_fn=notify_fn or (lambda m: None))
+        stats = tagger.tag_all_untagged(limit=limit)
+        tagger.close()
+        return (
+            f"✅ **규칙 태깅 완료**\n"
+            f"회의: {stats['meetings']:,}개 / "
+            f"clause: {stats['clauses_tagged']:,}개 / "
+            f"태그: {stats['tags_added']:,}개 / "
+            f"오류: {stats.get('errors', 0):,}건"
+        )
+
+    def tag_rule_stats(self) -> str:
+        """규칙 태깅 통계 조회"""
         from tagger.rule_tagger import RuleTagger
         tagger = RuleTagger()
-        stats = tagger.tag_all_untagged(limit=100)
+        result = tagger.get_stats()
         tagger.close()
-        return f"✅ 규칙 태깅 완료: {json.dumps(stats, ensure_ascii=False)}"
+        return result
 
     def tag_llm(self, limit: int = 50) -> str:
         from tagger.llm_tagger import LLMTagger
@@ -421,8 +437,34 @@ if HAS_TELEGRAM:
         await update.message.reply_text(msg, parse_mode="Markdown")
 
     async def cmd_tag_rule(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        await update.message.reply_text("🏷️ 규칙 태깅 중...")
-        msg = orch.tag_rule()
+        limit = int(context.args[0]) if context.args else 0
+        await update.message.reply_text(
+            f"🏷️ 규칙 태깅 시작 (limit={limit or '전체'})..."
+        )
+
+        pending_messages = []
+        def sync_notify(msg):
+            pending_messages.append(msg)
+
+        import functools
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None,
+            functools.partial(orch.tag_rule, limit, sync_notify)
+        )
+
+        for msg in pending_messages:
+            try:
+                if len(msg) > 4000:
+                    msg = msg[:4000] + "..."
+                await update.message.reply_text(msg, parse_mode="Markdown")
+            except Exception:
+                await update.message.reply_text(msg)
+
+        await update.message.reply_text(result, parse_mode="Markdown")
+
+    async def cmd_tag_rule_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        msg = orch.tag_rule_stats()
         await update.message.reply_text(msg, parse_mode="Markdown")
 
     async def cmd_tag_llm(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -472,7 +514,8 @@ if HAS_TELEGRAM:
 /discover - API 엔드포인트 탐색
 /collect [대상] - 데이터 수집
 /parse [회의ID] - 회의록 파싱
-/tag\\_rule - 규칙 기반 태깅
+/tag\\_rule [N] - 규칙 태깅 (N건, 없으면 전체)
+/tag\\_rule\\_stats - 규칙 태깅 통계
 /tag\\_llm [N] - LLM 태깅 (N건)
 /aggregate [주] - Feature 집계
 /detect [주] - 신호 탐지
@@ -507,6 +550,7 @@ def run_bot():
     app.add_handler(CommandHandler("collect", cmd_collect))
     app.add_handler(CommandHandler("parse", cmd_parse))
     app.add_handler(CommandHandler("tag_rule", cmd_tag_rule))
+    app.add_handler(CommandHandler("tag_rule_stats", cmd_tag_rule_stats))
     app.add_handler(CommandHandler("tag_llm", cmd_tag_llm))
     app.add_handler(CommandHandler("aggregate", cmd_aggregate))
     app.add_handler(CommandHandler("detect", cmd_detect))
@@ -529,7 +573,7 @@ def run_cli():
     import sys
     if len(sys.argv) < 2:
         print("사용법: python bot.py <command> [args]")
-        print("명령어: status, discover, backfill, backfill_status, collect, parse, tag_rule, tag_llm, aggregate, detect, report, signals, pipeline")
+        print("명령어: status, discover, backfill, backfill_status, collect, parse, tag_rule, tag_rule_stats, tag_llm, aggregate, detect, report, signals, pipeline")
         return
 
     cmd = sys.argv[1]
@@ -548,7 +592,11 @@ def run_cli():
         ),
         "collect": lambda: orch.collect(args if args else None),
         "parse": lambda: orch.parse(args[0] if args else None),
-        "tag_rule": lambda: orch.tag_rule(),
+        "tag_rule": lambda: orch.tag_rule(
+            int(args[0]) if args else 0,
+            lambda msg: print(msg)
+        ),
+        "tag_rule_stats": lambda: print(orch.tag_rule_stats()),
         "tag_llm": lambda: orch.tag_llm(int(args[0]) if args else 50),
         "aggregate": lambda: orch.aggregate(args[0] if args else None),
         "detect": lambda: orch.detect(args[0] if args else None),

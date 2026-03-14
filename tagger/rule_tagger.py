@@ -1,15 +1,26 @@
 """
-Step 3-A: 규칙 기반 태거
+Step 3-A: 규칙 기반 태거 (v2)
+──────────────────────────────
 - 비용 0원. Pi5 로컬에서 전부 처리
 - institutional_context, speaker_role은 메타데이터에서 직접 추출
 - policy_domain은 키워드 사전 매칭 (CAP 기반)
-- speech_act 중 절차 발언은 규칙으로 분류
+- speech_act: 절차+실질 발언 모두 분류 (v2 신규)
+- tone_conflict: 갈등 수준 규칙 탐지 (v2 신규)
 - named_entity는 정규식으로 1차 추출
+- evidence_type: 통계/사례/법령/해외사례/전문가의견/언론보도
+
+v2 개선사항:
+- 배치 한도 제거 (limit=0이면 전체 처리)
+- 비절차 speech_act 규칙 (질문/비판/제안/지지/반대/설명/보고/수사적질문)
+- tone_conflict 규칙 (협력/중립/긴장/갈등/적대)
+- notify_fn으로 텔레그램 진행 보고
+- 회의 단위 커밋 (메모리 절약)
 """
 import re
 import sqlite3
 import json
 import logging
+import time
 from pathlib import Path
 
 import sys
@@ -65,6 +76,88 @@ PROCEDURAL_ACTS = {
     "발언허가": re.compile(r'(발언|말씀)\s*(하시|해\s*주시|허가)'),
 }
 
+
+# ── speech_act 실질 발언 분류 규칙 (v2 신규) ──
+# 비절차 발언에 대해 speech_act를 부여
+# 우선순위: 위에서부터 매칭 (첫 매칭 채택)
+SUBSTANTIVE_ACTS = [
+    # (act_name, pattern, confidence)
+    ("수사적질문", re.compile(
+        r'(아닙니까|아니겠습니까|않겠습니까|않습니까|'
+        r'맞지\s*않습니까|되겠습니까|하겠습니까|'
+        r'말이\s*됩니까|몰랐습니까|있겠습니까)'), 0.75),
+    ("질문", re.compile(
+        r'(입니까\?|습니까\?|인가요\?|인지요\?|나요\?|까요\?|'
+        r'말씀해\s*주시|답변\s*(해|하여)\s*주시|'
+        r'어떻게\s*(생각|보시|되어|됩니)|'
+        r'알고\s*계시|파악하고\s*계시|'
+        r'확인\s*(해|좀)|설명\s*(해|좀)|근거가\s*뭡니까)'), 0.7),
+    ("비판", re.compile(
+        r'(문제가\s*(있|많|심각|크)|심각하|부실하|부적절|'
+        r'미흡하|실패|엉망|직무유기|무책임|'
+        r'국민[이을]\s*(우롱|속이|기만)|말이\s*(안|않)\s*됩니다|'
+        r'해명\s*(하시|해\s*주)|책임\s*(지셔야|져야|물어야)|'
+        r'거짓|허위|왜곡|은폐|축소|눈속임|'
+        r'방관|방치|뒷짐|외면|무시|묵인|묵살|'
+        r'도대체|대체\s*왜|어떻게\s*이런)'), 0.7),
+    ("공격", re.compile(
+        r'(사퇴|파면|경질|문책|탄핵|해임|'
+        r'구속|수사\s*(해야|하라|촉구)|처벌|엄벌|'
+        r'거짓말|사기|범죄|비리|부패|'
+        r'국민\s*앞에\s*사과|사죄|퇴진|물러나)'), 0.75),
+    ("제안", re.compile(
+        r'(제안|건의|요청|촉구|권고|개선\s*(방안|책|해야)|'
+        r'해야\s*합니다|해\s*주셔야|마련\s*(해야|해\s*주)|'
+        r'방안을|대책을|대안을|계획을\s*(세우|마련)|'
+        r'검토\s*(해\s*주시|하시|부탁)|'
+        r'필요\s*합니다|바랍니다|당부|부탁)'), 0.65),
+    ("지지", re.compile(
+        r'(찬성|동의|지지|환영|공감|긍정적|잘\s*하고|'
+        r'좋은\s*(정책|방향|방안)|바람직|타당|적절|'
+        r'동감|높이\s*평가|감사\s*드립니다)'), 0.65),
+    ("반대", re.compile(
+        r'(반대|불가|안\s*됩니다|할\s*수\s*없|'
+        r'동의\s*(할\s*수\s*없|하기\s*어렵)|'
+        r'수용\s*(할\s*수\s*없|하기\s*어렵|불가)|'
+        r'철회|재고|보류|유보|중단)'), 0.7),
+    ("설명", re.compile(
+        r'(말씀\s*드리|보고\s*드리|설명\s*드리|'
+        r'답변\s*드리|알려\s*드리|'
+        r'현황을\s*보면|현재\s*상황|진행\s*상황|추진\s*경과)'), 0.6),
+    ("방어", re.compile(
+        r'(검토\s*(하겠|중입니|하고\s*있)|'
+        r'노력\s*(하겠|하고\s*있)|개선\s*(하겠|하고\s*있)|'
+        r'말씀하신\s*부분|지적하신\s*부분|'
+        r'충분히\s*(이해|공감)|'
+        r'조치\s*(하겠|하고)|확인\s*(하겠|해\s*보겠)|'
+        r'관계\s*부처와\s*협의)'), 0.6),
+    ("보고", re.compile(
+        r'(보고\s*(드리|올리|하겠)|현황\s*보고|실적\s*보고|'
+        r'추진\s*실적|업무\s*보고|경과\s*보고)'), 0.7),
+]
+
+
+# ── tone_conflict 규칙 (v2 신규) ──
+# 갈등 수준 탐지: 키워드 기반 스코어링 → 범주 분류
+TONE_HOSTILE_WORDS = re.compile(
+    r'(사퇴|파면|탄핵|해임|퇴진|구속|처벌|엄벌|'
+    r'거짓말|사기|범죄|비리|부패|은폐|왜곡|조작|'
+    r'사죄|사과|국민\s*기만|국민\s*우롱|직무유기|'
+    r'도대체|대체\s*뭘|어떻게\s*이런|말이\s*됩니까|'
+    r'몰랐습니까|뻔뻔|후안무치|염치)'
+)
+TONE_TENSION_WORDS = re.compile(
+    r'(문제가|심각|미흡|부실|실패|부적절|무책임|'
+    r'해명|책임|우려|걱정|유감|반대|불가|중단|'
+    r'비판|지적|질타|추궁|따지)'
+)
+TONE_COOPERATIVE_WORDS = re.compile(
+    r'(감사|수고|협력|공감|동의|환영|합의|'
+    r'좋은\s*말씀|잘\s*하고\s*계시|격려|응원|'
+    r'함께|같이|협조|상생|소통)'
+)
+
+
 # ── 명명 개체(named entity) 패턴 ──
 ENTITY_PATTERNS = {
     "LAW": re.compile(r'(?:「|「)([^」」]+)(?:」|」)'),  # 「법률명」
@@ -86,8 +179,10 @@ ENTITY_PATTERNS = {
 class RuleTagger:
     """규칙 기반 태거: 비용 0원, Pi5 로컬 처리"""
 
-    def __init__(self):
+    def __init__(self, notify_fn=None):
         self.conn = sqlite3.connect(str(DB_PATH))
+        self.conn.execute("PRAGMA journal_mode=WAL")
+        self.notify = notify_fn or (lambda msg: logger.info(msg))
 
     def tag_meeting(self, meeting_id: str) -> dict:
         """회의 내 모든 clause에 규칙 기반 태그 부여"""
@@ -127,22 +222,37 @@ class RuleTagger:
                 if pattern.search(text):
                     tags.append(("policy_domain", domain, 0.8))
 
-            # 4. speech_act: 절차 발언 분류
+            # 4. speech_act
             if is_procedural:
+                # 절차 발언: 세부 분류
                 act = "절차"
                 for act_name, pat in PROCEDURAL_ACTS.items():
                     if pat.search(text):
                         act = act_name
                         break
                 tags.append(("speech_act", act, 0.9))
+            else:
+                # 실질 발언: 규칙 기반 분류 (v2)
+                act_tagged = False
+                for act_name, pat, conf in SUBSTANTIVE_ACTS:
+                    if pat.search(text):
+                        tags.append(("speech_act", act_name, conf))
+                        act_tagged = True
+                        break  # 첫 매칭만 (우선순위)
+                # 매칭 안 되면 태그 안 붙임 → LLM 태거가 처리
 
-            # 5. named_entity 추출
+            # 5. tone_conflict (v2 신규)
+            tone = self._detect_tone(text)
+            if tone:
+                tags.append(("tone_conflict", tone[0], tone[1]))
+
+            # 6. named_entity 추출
             for ent_type, pattern in ENTITY_PATTERNS.items():
                 for m in pattern.finditer(text):
                     entity_text = m.group(1) if m.lastindex else m.group(0)
                     self._upsert_entity(clause_id, ent_type, entity_text)
 
-            # 6. evidence_type 규칙 추출
+            # 7. evidence_type 규칙 추출
             evidence = self._detect_evidence(text)
             if evidence:
                 tags.append(("evidence_type", evidence, 0.7))
@@ -158,9 +268,53 @@ class RuleTagger:
 
             stats["clauses_tagged"] += 1
 
+        # 회의 단위 커밋 (Pi5 메모리 절약)
         self.conn.commit()
         logger.info(f"[{meeting_id}] 규칙 태깅: {stats}")
         return stats
+
+    def _detect_tone(self, text: str) -> tuple | None:
+        """
+        tone_conflict 탐지: 키워드 스코어링 → 범주 분류
+        Returns: (tone_value, confidence) or None
+        """
+        if len(text) < 10:
+            return None
+
+        hostile = len(TONE_HOSTILE_WORDS.findall(text))
+        tension = len(TONE_TENSION_WORDS.findall(text))
+        cooperative = len(TONE_COOPERATIVE_WORDS.findall(text))
+
+        total = hostile + tension + cooperative
+        if total == 0:
+            return None  # 단서 없음 → LLM에게 위임
+
+        # 적대 키워드가 2개 이상이면 적대
+        if hostile >= 2:
+            return ("적대", 0.7)
+        # 적대 1개 + 긴장 있으면 갈등
+        if hostile >= 1 and tension >= 1:
+            return ("갈등", 0.65)
+        # 적대 1개만이면 긴장
+        if hostile >= 1:
+            return ("긴장", 0.6)
+        # 긴장 키워드 2개 이상이면 긴장
+        if tension >= 2:
+            return ("긴장", 0.6)
+        # 긴장 1개 + 협력 없으면 긴장
+        if tension >= 1 and cooperative == 0:
+            return ("긴장", 0.55)
+        # 협력 키워드가 우세하면 협력
+        if cooperative >= 2 and tension == 0:
+            return ("협력", 0.65)
+        if cooperative >= 1 and tension == 0:
+            return ("협력", 0.55)
+
+        # 혼재: 중립
+        if tension >= 1 and cooperative >= 1:
+            return ("중립", 0.5)
+
+        return None
 
     def _detect_evidence(self, text: str) -> str | None:
         """증거 유형 탐지"""
@@ -184,34 +338,137 @@ class RuleTagger:
             VALUES (?, ?, ?)
         """, (clause_id, entity_type, entity_text))
 
-    def tag_all_untagged(self, limit: int = 100) -> dict:
-        """아직 태깅 안 된 회의를 배치 처리"""
-        meetings = self.conn.execute("""
+    def tag_all_untagged(self, limit: int = 0) -> dict:
+        """
+        아직 태깅 안 된 회의를 배치 처리.
+        limit: 최대 회의 수 (0=전체, Pi5 장기 실행용)
+        """
+        query = """
             SELECT DISTINCT m.meeting_id
             FROM meeting m
             JOIN utterance u ON m.meeting_id = u.meeting_id
             LEFT JOIN clause c ON u.utterance_id = c.utterance_id
             LEFT JOIN clause_tag ct ON c.clause_id = ct.clause_id AND ct.tagger='rule'
             WHERE ct.tag_id IS NULL
-            LIMIT ?
-        """, (limit,)).fetchall()
+        """
+        if limit > 0:
+            query += f" LIMIT {limit}"
+
+        meetings = self.conn.execute(query).fetchall()
+
+        total_count = len(meetings)
+        self.notify(
+            f"🏷️ **규칙 태깅 시작**\n"
+            f"대상: {total_count:,}개 회의"
+        )
 
         total_stats = {"meetings": 0, "clauses_tagged": 0, "tags_added": 0}
-        for (meeting_id,) in meetings:
-            stats = self.tag_meeting(meeting_id)
-            total_stats["meetings"] += 1
-            total_stats["clauses_tagged"] += stats["clauses_tagged"]
-            total_stats["tags_added"] += stats["tags_added"]
+        errors = 0
+        start_time = time.time()
 
+        for i, (meeting_id,) in enumerate(meetings, 1):
+            try:
+                stats = self.tag_meeting(meeting_id)
+                total_stats["meetings"] += 1
+                total_stats["clauses_tagged"] += stats["clauses_tagged"]
+                total_stats["tags_added"] += stats["tags_added"]
+            except Exception as e:
+                errors += 1
+                logger.error(f"[{meeting_id}] 태깅 실패: {e}")
+
+            # 10건마다 진행 보고
+            if i % 10 == 0:
+                elapsed = time.time() - start_time
+                rate = i / elapsed if elapsed > 0 else 0
+                eta = (total_count - i) / rate if rate > 0 else 0
+                self.notify(
+                    f"🏷️ 진행: {i}/{total_count} "
+                    f"({i/total_count*100:.0f}%) "
+                    f"태그 {total_stats['tags_added']:,}개 "
+                    f"[{rate:.1f}회의/초, 남은 시간 ~{eta/60:.0f}분]"
+                )
+
+        elapsed = time.time() - start_time
+        self.notify(
+            f"✅ **규칙 태깅 완료** ({elapsed/60:.1f}분 소요)\n"
+            f"회의: {total_stats['meetings']:,}개 / "
+            f"clause: {total_stats['clauses_tagged']:,}개 / "
+            f"태그: {total_stats['tags_added']:,}개 / "
+            f"오류: {errors:,}건"
+        )
+
+        total_stats["errors"] = errors
         return total_stats
+
+    def get_stats(self) -> str:
+        """현재 태깅 통계"""
+        rows = self.conn.execute("""
+            SELECT axis, COUNT(*), COUNT(DISTINCT clause_id)
+            FROM clause_tag WHERE tagger='rule'
+            GROUP BY axis ORDER BY COUNT(*) DESC
+        """).fetchall()
+
+        total_clauses = self.conn.execute(
+            "SELECT COUNT(*) FROM clause"
+        ).fetchone()[0]
+        tagged_clauses = self.conn.execute(
+            "SELECT COUNT(DISTINCT clause_id) FROM clause_tag WHERE tagger='rule'"
+        ).fetchone()[0]
+
+        lines = [
+            f"🏷️ **규칙 태깅 통계**",
+            f"전체 clause: {total_clauses:,}",
+            f"태깅된 clause: {tagged_clauses:,} ({tagged_clauses/max(total_clauses,1)*100:.1f}%)",
+            "",
+        ]
+        for axis, tag_count, clause_count in rows:
+            lines.append(f"  {axis}: {tag_count:,}개 태그 ({clause_count:,} clauses)")
+
+        # 축별 상위 값 미리보기
+        for axis in ["policy_domain", "speech_act", "tone_conflict"]:
+            top = self.conn.execute("""
+                SELECT value, COUNT(*) as cnt FROM clause_tag
+                WHERE tagger='rule' AND axis=?
+                GROUP BY value ORDER BY cnt DESC LIMIT 5
+            """, (axis,)).fetchall()
+            if top:
+                lines.append(f"\n  [{axis} 상위]")
+                for val, cnt in top:
+                    lines.append(f"    {val}: {cnt:,}")
+
+        return "\n".join(lines)
 
     def close(self):
         self.conn.close()
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    tagger = RuleTagger()
-    stats = tagger.tag_all_untagged()
-    print(json.dumps(stats, ensure_ascii=False, indent=2))
+    import argparse
+
+    parser = argparse.ArgumentParser(description="규칙 기반 태거")
+    parser.add_argument("command", nargs="?", default="run",
+                        choices=["run", "stats", "meeting"],
+                        help="실행 모드: run(배치), stats(통계), meeting(단일)")
+    parser.add_argument("--limit", type=int, default=0,
+                        help="배치 최대 회의 수 (0=전체)")
+    parser.add_argument("--meeting-id", type=str,
+                        help="단일 회의 태깅 대상 ID")
+    args = parser.parse_args()
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+    )
+
+    tagger = RuleTagger(notify_fn=lambda msg: print(msg))
+
+    if args.command == "stats":
+        print(tagger.get_stats())
+    elif args.command == "meeting" and args.meeting_id:
+        stats = tagger.tag_meeting(args.meeting_id)
+        print(json.dumps(stats, ensure_ascii=False, indent=2))
+    else:
+        stats = tagger.tag_all_untagged(limit=args.limit)
+        print(json.dumps(stats, ensure_ascii=False, indent=2))
+
     tagger.close()
