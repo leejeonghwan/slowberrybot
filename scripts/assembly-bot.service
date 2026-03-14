@@ -1,0 +1,19 @@
+[Unit]
+Description=National Assembly Signal Detection Bot
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/assembly-signal
+EnvironmentFile=/home/pi/assembly-signal/.env
+ExecStart=/home/pi/assembly-signal/venv/bin/python bot.py bot
+Restart=always
+RestartSec=10
+
+# Pi5 리소스 제한
+MemoryMax=2G
+CPUQuota=50%
+
+[Install]
+WantedBy=multi-user.target

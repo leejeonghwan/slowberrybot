@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+venv/
+*.egg-info/
+
+# 환경 변수 (API 키 보호)
+.env
+
+# DB 및 수집 데이터 (용량 큼)
+db/assembly.db
+db/assembly.db-wal
+db/assembly.db-shm
+db/raw_json/
+db/all_apis.json
+db/endpoint_map.json
+db/backfill_progress.json
+
+# 로그
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
