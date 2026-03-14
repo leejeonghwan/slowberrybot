@@ -12,6 +12,7 @@ db/assembly.db
 db/assembly.db-wal
 db/assembly.db-shm
 db/raw_json/
+db/backup/
 db/all_apis.json
 db/endpoint_map.json
 db/backfill_progress.json
