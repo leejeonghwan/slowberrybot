@@ -460,6 +460,65 @@ class RuleTagger:
         total_stats["errors"] = errors
         return total_stats
 
+    def retag_all(self, limit: int = 0) -> dict:
+        """
+        전체 회의 재태깅 (v3 규칙 적용).
+        기존 태그: INSERT OR IGNORE로 보호됨.
+        새 규칙으로 추가되는 태그만 신규 삽입.
+        """
+        query = """
+            SELECT DISTINCT m.meeting_id
+            FROM meeting m
+            JOIN utterance u ON m.meeting_id = u.meeting_id
+            JOIN clause c ON u.utterance_id = c.utterance_id
+            ORDER BY m.meeting_date
+        """
+        if limit > 0:
+            query += f" LIMIT {limit}"
+
+        meetings = self.conn.execute(query).fetchall()
+        total_count = len(meetings)
+        self.notify(
+            f"🔄 **전체 재태깅 시작** (v3 규칙)\n"
+            f"대상: {total_count:,}개 회의"
+        )
+
+        total_stats = {"meetings": 0, "clauses_tagged": 0, "tags_added": 0}
+        errors = 0
+        start_time = time.time()
+
+        for i, (meeting_id,) in enumerate(meetings, 1):
+            try:
+                stats = self.tag_meeting(meeting_id)
+                total_stats["meetings"] += 1
+                total_stats["clauses_tagged"] += stats["clauses_tagged"]
+                total_stats["tags_added"] += stats["tags_added"]
+            except Exception as e:
+                errors += 1
+                logger.error(f"[{meeting_id}] 재태깅 실패: {e}")
+
+            if i % 10 == 0:
+                elapsed = time.time() - start_time
+                rate = i / elapsed if elapsed > 0 else 0
+                eta = (total_count - i) / rate if rate > 0 else 0
+                self.notify(
+                    f"🔄 재태깅: {i}/{total_count} "
+                    f"({i/total_count*100:.0f}%) "
+                    f"태그 {total_stats['tags_added']:,}개 "
+                    f"[{rate:.1f}회의/초, ~{eta/60:.0f}분 남음]"
+                )
+
+        elapsed = time.time() - start_time
+        self.notify(
+            f"✅ **전체 재태깅 완료** ({elapsed/60:.1f}분)\n"
+            f"회의: {total_stats['meetings']:,}개 / "
+            f"태그: {total_stats['tags_added']:,}개 / "
+            f"오류: {errors:,}건"
+        )
+
+        total_stats["errors"] = errors
+        return total_stats
+
     def get_stats(self) -> str:
         """현재 태깅 통계"""
         rows = self.conn.execute("""

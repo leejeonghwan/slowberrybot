@@ -9,6 +9,7 @@
   /collect [대상] - 데이터 수집 (meetings/bills/votes/members/all)
   /parse [회의ID] - 회의록 파싱 (ID 없으면 미처리분 배치)
   /tag_rule [N]   - 규칙 기반 태깅 배치 (N건, 없으면 전체)
+  /retag          - 전체 재태깅 (v3 규칙, 기존 태그 보호)
   /tag_rule_stats - 규칙 태깅 통계 조회
   /tag_llm [N]    - LLM(Haiku) 태깅 배치 (N건, 기본 50)
   /aggregate [주] - Feature Store 집계 (주 미지정시 최근 4주)
@@ -235,6 +236,19 @@ class Orchestrator:
             f"✅ **규칙 태깅 완료**\n"
             f"회의: {stats['meetings']:,}개 / "
             f"clause: {stats['clauses_tagged']:,}개 / "
+            f"태그: {stats['tags_added']:,}개 / "
+            f"오류: {stats.get('errors', 0):,}건"
+        )
+
+    def retag(self, limit: int = 0, notify_fn=None) -> str:
+        """전체 재태깅 (v3 규칙 적용, INSERT OR IGNORE로 기존 보호)"""
+        from tagger.rule_tagger import RuleTagger
+        tagger = RuleTagger(notify_fn=notify_fn or (lambda m: None))
+        stats = tagger.retag_all(limit=limit)
+        tagger.close()
+        return (
+            f"🔄 **전체 재태깅 완료**\n"
+            f"회의: {stats['meetings']:,}개 / "
             f"태그: {stats['tags_added']:,}개 / "
             f"오류: {stats.get('errors', 0):,}건"
         )
@@ -633,6 +647,31 @@ if HAS_TELEGRAM:
 
         await update.message.reply_text(result, parse_mode="Markdown")
 
+    async def cmd_retag(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """전체 재태깅 (v3 규칙)"""
+        await update.message.reply_text("🔄 전체 재태깅 시작 (v3 규칙)... 시간이 걸립니다.")
+
+        pending_messages = []
+        def sync_notify(msg):
+            pending_messages.append(msg)
+
+        import functools
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None,
+            functools.partial(orch.retag, 0, sync_notify)
+        )
+
+        for msg in pending_messages:
+            try:
+                if len(msg) > 4000:
+                    msg = msg[:4000] + "..."
+                await update.message.reply_text(msg, parse_mode="Markdown")
+            except Exception:
+                await update.message.reply_text(msg)
+
+        await update.message.reply_text(result, parse_mode="Markdown")
+
     async def cmd_tag_rule_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         msg = orch.tag_rule_stats()
         await update.message.reply_text(msg, parse_mode="Markdown")
@@ -734,6 +773,7 @@ if HAS_TELEGRAM:
 /collect [대상] - 데이터 수집
 /parse [회의ID] - 회의록 파싱
 /tag\\_rule [N] - 규칙 태깅 (N건, 없으면 전체)
+/retag - 🔄 전체 재태깅 (v3 규칙, 기존 보호)
 /tag\\_rule\\_stats - 규칙 태깅 통계
 /tag\\_llm [N] - LLM 태깅 (N건)
 /aggregate [주] - Feature 집계
@@ -772,6 +812,7 @@ def run_bot():
     app.add_handler(CommandHandler("collect", cmd_collect))
     app.add_handler(CommandHandler("parse", cmd_parse))
     app.add_handler(CommandHandler("tag_rule", cmd_tag_rule))
+    app.add_handler(CommandHandler("retag", cmd_retag))
     app.add_handler(CommandHandler("tag_rule_stats", cmd_tag_rule_stats))
     app.add_handler(CommandHandler("tag_llm", cmd_tag_llm))
     app.add_handler(CommandHandler("aggregate", cmd_aggregate))
@@ -799,7 +840,7 @@ def run_cli():
     if len(sys.argv) < 2:
         print("사용법: python bot.py <command> [args]")
         print("명령어: status, discover, backfill, backfill_status, collect, parse,")
-        print("        tag_rule, tag_rule_stats, tag_llm, aggregate, detect, detect_all,")
+        print("        tag_rule, retag, tag_rule_stats, tag_llm, aggregate, detect, detect_all,")
         print("        detect_fresh, analyze, grind, report, signals, pipeline")
         return
 
@@ -823,6 +864,7 @@ def run_cli():
             int(args[0]) if args else 0,
             lambda msg: print(msg)
         ),
+        "retag": lambda: orch.retag(0, lambda msg: print(msg)),
         "tag_rule_stats": lambda: print(orch.tag_rule_stats()),
         "tag_llm": lambda: orch.tag_llm(int(args[0]) if args else 50),
         "aggregate": lambda: orch.aggregate(args[0] if args else None),
