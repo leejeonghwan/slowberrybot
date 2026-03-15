@@ -261,12 +261,18 @@ class Orchestrator:
         tagger.close()
         return result
 
-    def tag_llm(self, limit: int = 50) -> str:
+    def tag_llm(self, limit: int = 50, notify_fn=None) -> str:
         from tagger.llm_tagger import LLMTagger
-        tagger = LLMTagger()
-        stats = tagger.tag_batch(limit=limit)
+        _notify = notify_fn or (lambda m: logger.info(m))
+        tagger = LLMTagger(notify_fn=_notify)
+        stats = tagger.tag_batch(limit=limit, notify_fn=_notify)
         tagger.close()
-        return f"✅ LLM 태깅 완료: {json.dumps(stats, ensure_ascii=False)}"
+        return (
+            f"✅ **LLM 태깅 완료** ({tagger.backend})\n"
+            f"API: {stats.get('api_calls', 0):,}회 / "
+            f"태그: {stats['tagged']:,}건 / "
+            f"실패: {stats['failed']:,}건"
+        )
 
     def aggregate(self, year_week: str = None, notify_fn=None) -> str:
         """주간 feature 집계. year_week 없으면 전체 기간 집계."""
@@ -678,9 +684,26 @@ if HAS_TELEGRAM:
 
     async def cmd_tag_llm(update: Update, context: ContextTypes.DEFAULT_TYPE):
         limit = int(context.args[0]) if context.args else 50
-        await update.message.reply_text(f"🤖 LLM 태깅 중 ({limit}건)...")
-        msg = orch.tag_llm(limit)
-        await update.message.reply_text(msg, parse_mode="Markdown")
+        await update.message.reply_text(f"🤖 LLM 태깅 시작 ({limit}건)...")
+
+        pending_messages = []
+        def sync_notify(msg):
+            pending_messages.append(msg)
+
+        import functools
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None,
+            functools.partial(orch.tag_llm, limit, sync_notify)
+        )
+
+        for msg in pending_messages[-3:]:  # 최근 3개 진행 보고만
+            try:
+                await update.message.reply_text(msg, parse_mode="Markdown")
+            except Exception:
+                await update.message.reply_text(msg)
+
+        await update.message.reply_text(result, parse_mode="Markdown")
 
     async def cmd_aggregate(update: Update, context: ContextTypes.DEFAULT_TYPE):
         week = context.args[0] if context.args else None

@@ -44,8 +44,16 @@ MEMORY_LIMIT_MB = 2048       # 최대 메모리 사용 (8GB 모델 기준 2GB)
 
 # ── LLM API (외부 호출용) ──
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
-LLM_MODEL_TAG = "claude-haiku-4-5-20251001"       # 대량 태깅용
-LLM_MODEL_EXPLAIN = "claude-sonnet-4-6-20250514"  # 설명 생성용
+LLM_MODEL_TAG = "claude-haiku-4-5-20251001"       # 대량 태깅용 (Anthropic)
+LLM_MODEL_EXPLAIN = "claude-sonnet-4-6-20250514"  # 설명 생성용 (Anthropic)
+
+# ── Upstage Solar API ──
+UPSTAGE_API_KEY = os.environ.get("UPSTAGE_API_KEY", "")
+UPSTAGE_BASE_URL = "https://api.upstage.ai/v1/solar"
+UPSTAGE_MODEL = "solar-pro"                       # 대량 태깅용 (Solar)
+
+# LLM 백엔드 선택: "solar" 또는 "anthropic"
+LLM_BACKEND = os.environ.get("LLM_BACKEND", "solar")
 
 # ── 분석 주기 ──
 COLLECT_CRON = "0 3 * * *"   # 매일 새벽 3시 수집
