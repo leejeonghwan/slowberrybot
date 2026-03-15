@@ -1,10 +1,12 @@
 """
-Step 4: Feature Store - 주간 집계 (v2)
+Step 4: Feature Store - 주간 집계 (v3)
 ──────────────────────────────────────
 이슈(policy_domain) × 타깃(ORG/PERSON) × 위원회 × 주간 단위로 신호 feature를 계산.
 Pi5 로컬에서 SQLite 쿼리로 처리. LLM 호출 없음.
 
-v2 개선:
+v3 개선:
+- 교차오염 방지: ENTITY_DOMAIN_MAP으로 기관-도메인 정합성 검증
+  (예: "검찰"은 "법과질서" 소관이므로 "교통→검찰" 조합 차단)
 - clause_tag의 policy_domain을 issue_id로 직접 사용
 - clause_entity의 ORG/PERSON을 target_entity로 사용
 - clause_issue 테이블 의존 제거 (아직 미구현이므로)
@@ -25,6 +27,85 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from config.settings import DB_PATH
 
 logger = logging.getLogger(__name__)
+
+
+# ── 기관→소관 도메인 매핑 (교차오염 방지) ──
+# 주요 기관/부처가 어떤 정책 도메인에 속하는지 정의.
+# 매핑에 없는 엔티티(인물 등)는 모든 도메인과 조합 허용.
+ENTITY_DOMAIN_MAP = {
+    # 법과질서
+    "검찰": {"법과질서"},
+    "경찰청": {"법과질서"},
+    "법무부": {"법과질서", "시민권/자유"},
+    # 국방/안보
+    "국방부": {"국방"},
+    "국정원": {"국방", "외교"},
+    "국가정보원": {"국방", "외교"},
+    # 경제/재정
+    "기획재정부": {"거시경제", "금융"},
+    "국세청": {"거시경제"},
+    "관세청": {"무역", "거시경제"},
+    "한국은행": {"금융", "거시경제"},
+    # 금융
+    "금융위원회": {"금융"},
+    "금융감독원": {"금융"},
+    # 산업/통상/에너지
+    "산업통상자원부": {"에너지", "무역", "거시경제"},
+    # 교육
+    "교육부": {"교육"},
+    # 보건의료
+    "보건복지부": {"보건의료", "복지"},
+    "건강보험공단": {"보건의료"},
+    # 복지
+    "국민연금": {"복지"},
+    # 환경
+    "환경부": {"환경"},
+    # 노동
+    "고용노동부": {"노동/고용"},
+    # 국토/교통/주거
+    "국토교통부": {"교통", "주거", "토지/수자원"},
+    # 농림/수산
+    "농림축산식품부": {"농업/식품"},
+    "해양수산부": {"농업/식품"},
+    # 과학기술/ICT
+    "과학기술정보통신부": {"과학기술"},
+    # 문화/방송
+    "문화체육관광부": {"문화/여가"},
+    "방송통신위원회": {"문화/여가", "과학기술"},
+    # 행정/정부운영
+    "행정안전부": {"정부운영"},
+    "감사원": {"정부운영", "법과질서"},
+    "국민권익위원회": {"정부운영"},
+    "공정거래위원회": {"거시경제", "금융"},
+    # 여성/가족
+    "여성가족부": {"복지", "시민권/자유"},
+    # 외교
+    "외교부": {"외교"},
+    "통일부": {"외교", "국방"},
+    # 보훈
+    "국가보훈부": {"국방", "복지"},
+    # 중소기업
+    "중소벤처기업부": {"거시경제", "무역"},
+    # 이민
+    "법무부출입국": {"이민"},
+}
+
+
+def _is_valid_domain_target(domain: str, target: str) -> bool:
+    """
+    도메인×타깃 조합이 유효한지 검증.
+    - 매핑에 있는 기관이면: 해당 도메인이 소관 목록에 있어야 통과
+    - 매핑에 없으면 (인물, 미등록 기관): 모든 도메인 허용
+    - _none, _unknown 등 특수 타깃: 모든 도메인 허용
+    """
+    if target.startswith("_") or not target:
+        return True
+    if domain.startswith("_") or not domain:
+        return True
+    valid_domains = ENTITY_DOMAIN_MAP.get(target)
+    if valid_domains is None:
+        return True  # 매핑에 없는 엔티티는 제한 안 함
+    return domain in valid_domains
 
 
 class WeeklyAggregator:
@@ -136,9 +217,11 @@ class WeeklyAggregator:
             targets = clause_targets.get(cid, ["_none"])
             acts = clause_acts.get(cid, {})
 
-            # 도메인 × 타깃 모든 조합으로 그룹핑
+            # 도메인 × 타깃 조합 (v3: 교차오염 필터링)
             for domain in domains:
                 for target in targets:
+                    if not _is_valid_domain_target(domain, target):
+                        continue  # 불합리한 조합 건너뛰기
                     key = (domain, target, committee or "_none")
                     g = groups[key]
                     g["mentions"] += 1

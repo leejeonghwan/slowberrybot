@@ -502,6 +502,37 @@ class Orchestrator:
 
         return "\n".join(lines)
 
+    def rerun(self, notify_fn=None) -> str:
+        """
+        재집계 + 재탐지 (v3 교차오염 수정 후 실행용).
+        기존 태그는 유지, weekly_feature와 signal만 재계산.
+        """
+        _notify = notify_fn or (lambda m: logger.info(m))
+        results = []
+        start_time = datetime.now()
+
+        steps = [
+            ("주간 집계 (v3)", lambda: self.aggregate(notify_fn=_notify)),
+            ("전체 신호 재탐지", lambda: self.detect(scan_all=True, fresh=True)),
+        ]
+
+        for name, fn in steps:
+            _notify(f"⏳ {name} 시작...")
+            try:
+                result = fn()
+                results.append(f"✅ {name}: {result[:200]}")
+                _notify(f"✅ {name} 완료")
+            except Exception as e:
+                results.append(f"❌ {name}: {e}")
+                _notify(f"❌ {name} 실패: {e}")
+
+        elapsed = datetime.now() - start_time
+        return "\n".join([
+            f"🔄 **재집계+재탐지 완료** ({elapsed})",
+            "(교차오염 필터 v3 적용)",
+            ""
+        ] + results)
+
     def full_pipeline(self) -> str:
         """전체 파이프라인 순차 실행 (LLM 포함)"""
         results = []
@@ -782,6 +813,34 @@ if HAS_TELEGRAM:
         else:
             await update.message.reply_text(msg, parse_mode="Markdown")
 
+    async def cmd_rerun(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """재집계 + 재탐지 (교차오염 수정 후)"""
+        await update.message.reply_text(
+            "🔄 **재집계+재탐지 시작** (v3 교차오염 필터)\n"
+            "시간이 걸립니다. 놔두세요."
+        )
+
+        pending_messages = []
+        def sync_notify(msg):
+            pending_messages.append(msg)
+
+        import functools
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None,
+            functools.partial(orch.rerun, sync_notify)
+        )
+
+        for msg in pending_messages:
+            try:
+                if len(msg) > 4000:
+                    msg = msg[:4000] + "..."
+                await update.message.reply_text(msg, parse_mode="Markdown")
+            except Exception:
+                await update.message.reply_text(msg)
+
+        await update.message.reply_text(result, parse_mode="Markdown")
+
     async def cmd_pipeline(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("🔄 전체 파이프라인 시작... (시간이 걸립니다)")
         msg = orch.full_pipeline()
@@ -808,6 +867,7 @@ if HAS_TELEGRAM:
 /backfill\\_status - 백필 진행 상황
 /detect\\_all - 전체 주간 신호 탐지
 /analyze - 📊 신호 점수 분포 분석
+/rerun - 🔄 재집계+재탐지 (교차오염 수정 후)
 /grind - 🔨 노가다 체인 (수집→파싱→태깅→집계→탐지)
 /pipeline - 전체 파이프라인 (LLM 포함)
 
@@ -845,6 +905,7 @@ def run_bot():
     app.add_handler(CommandHandler("detect_all", cmd_detect_all))
     app.add_handler(CommandHandler("analyze", cmd_analyze))
     app.add_handler(CommandHandler("grind", cmd_grind))
+    app.add_handler(CommandHandler("rerun", cmd_rerun))
     app.add_handler(CommandHandler("pipeline", cmd_pipeline))
     app.add_handler(CommandHandler("help", cmd_help))
     app.add_handler(CommandHandler("start", cmd_help))
@@ -864,7 +925,7 @@ def run_cli():
         print("사용법: python bot.py <command> [args]")
         print("명령어: status, discover, backfill, backfill_status, collect, parse,")
         print("        tag_rule, retag, tag_rule_stats, tag_llm, aggregate, detect, detect_all,")
-        print("        detect_fresh, analyze, grind, report, signals, pipeline")
+        print("        detect_fresh, rerun, analyze, grind, report, signals, pipeline")
         return
 
     cmd = sys.argv[1]
@@ -894,6 +955,7 @@ def run_cli():
         "detect": lambda: orch.detect(args[0] if args else None),
         "detect_all": lambda: orch.detect(scan_all=True),
         "detect_fresh": lambda: orch.detect(scan_all=True, fresh=True),
+        "rerun": lambda: orch.rerun(lambda msg: print(msg)),
         "analyze": lambda: print(orch.analyze_signals()),
         "grind": lambda: orch.grind(lambda msg: print(msg)),
         "report": lambda: orch.report(args[0] if args else None),
