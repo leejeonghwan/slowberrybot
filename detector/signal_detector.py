@@ -193,42 +193,73 @@ class SignalDetector:
         return divergence
 
     def _build_evidence(self, key: tuple, year_week: str) -> dict:
-        """신호의 증거 패킷 조립"""
+        """
+        신호의 증거 패킷 조립 (v2)
+        - clause_tag(policy_domain) 기반 (빈 clause_issue 대신)
+        - 해당 주간 + 이슈 + 타깃과 관련된 대표 발언 추출
+        """
         issue_id, target, committee = key
 
-        # 대표 발언 추출 (가장 강한 speech_act)
+        # 주간 날짜 범위
+        year, week = year_week.split("-W")
+        monday = datetime.strptime(f"{year}-W{int(week)}-1", "%G-W%V-%u")
+        sunday = monday + timedelta(days=6)
+        date_from = monday.strftime("%Y-%m-%d")
+        date_to = sunday.strftime("%Y-%m-%d")
+
+        # 대표 발언 추출: policy_domain 매칭 + 강한 speech_act
         top_clauses = self.conn.execute("""
-            SELECT c.text, u.speaker_name, u.speaker_role, ct.value as act
+            SELECT c.text, u.speaker_name, u.speaker_role,
+                   sa.value as act, c.char_count
             FROM clause c
             JOIN utterance u ON c.utterance_id = u.utterance_id
             JOIN meeting m ON u.meeting_id = m.meeting_id
-            JOIN clause_tag ct ON c.clause_id = ct.clause_id AND ct.axis = 'speech_act'
-            LEFT JOIN clause_issue ci ON c.clause_id = ci.clause_id
-            WHERE ci.issue_id = ?
-              AND ct.value IN ('비판', '공격', '제안', '수사적질문')
+            JOIN clause_tag pd ON c.clause_id = pd.clause_id
+                AND pd.axis = 'policy_domain' AND pd.value = ?
+            LEFT JOIN clause_tag sa ON c.clause_id = sa.clause_id
+                AND sa.axis = 'speech_act'
+            WHERE m.meeting_date BETWEEN ? AND ?
+              AND sa.value IN ('비판', '공격', '제안', '수사적질문', '질문')
             ORDER BY c.char_count DESC
             LIMIT 5
-        """, (issue_id,)).fetchall()
+        """, (issue_id, date_from, date_to)).fetchall()
 
-        # 관련 법안/안건
-        agendas = self.conn.execute("""
-            SELECT DISTINCT a.agenda_id, a.title, a.status
-            FROM clause_agenda ca
-            JOIN agenda a ON ca.agenda_id = a.agenda_id
-            JOIN clause c ON ca.clause_id = c.clause_id
-            JOIN clause_issue ci ON c.clause_id = ci.clause_id
-            WHERE ci.issue_id = ?
-            LIMIT 5
-        """, (issue_id,)).fetchall()
+        # 타깃 엔티티 관련 발언 (위에서 못 찾으면 보충)
+        if len(top_clauses) < 3:
+            target_clauses = self.conn.execute("""
+                SELECT c.text, u.speaker_name, u.speaker_role,
+                       sa.value as act, c.char_count
+                FROM clause c
+                JOIN utterance u ON c.utterance_id = u.utterance_id
+                JOIN meeting m ON u.meeting_id = m.meeting_id
+                JOIN clause_entity ce ON c.clause_id = ce.clause_id
+                    AND ce.entity_text = ?
+                LEFT JOIN clause_tag sa ON c.clause_id = sa.clause_id
+                    AND sa.axis = 'speech_act'
+                WHERE m.meeting_date BETWEEN ? AND ?
+                ORDER BY c.char_count DESC
+                LIMIT ?
+            """, (target, date_from, date_to, 5 - len(top_clauses))).fetchall()
+            top_clauses = list(top_clauses) + list(target_clauses)
+
+        # 관련 위원회 회의 정보
+        meetings = self.conn.execute("""
+            SELECT m.meeting_id, m.committee_name, m.meeting_date, m.title
+            FROM meeting m
+            WHERE m.meeting_date BETWEEN ? AND ?
+              AND (m.committee_id = ? OR ? = '')
+            ORDER BY m.meeting_date
+            LIMIT 3
+        """, (date_from, date_to, committee, committee)).fetchall()
 
         return {
             "top_clauses": [
-                {"text": t, "speaker": s, "role": r, "act": a}
-                for t, s, r, a in top_clauses
+                {"text": t[:200], "speaker": s, "role": r, "act": a or "기타"}
+                for t, s, r, a, _ in top_clauses
             ],
-            "related_agendas": [
-                {"id": aid, "title": title, "status": status}
-                for aid, title, status in agendas
+            "meetings": [
+                {"id": mid, "committee": cname, "date": mdate, "title": title}
+                for mid, cname, mdate, title in meetings
             ],
         }
 
