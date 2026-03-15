@@ -21,12 +21,21 @@ logger = logging.getLogger(__name__)
 
 
 class SignalDetector:
-    # 탐지 임계값 (튜닝 대상)
-    BURST_ZSCORE = 2.0          # mention burst z-score 기준
+    # 탐지 임계값 (v2: 8,223→~2,000 목표)
+    COMPOSITE_THRESHOLD = 0.25  # 종합 점수 하한 (이전 0.15)
+    BURST_ZSCORE = 2.5          # mention burst z-score 기준 (이전 2.0)
     PRESSURE_GROWTH = 0.3       # 주간 pressure 증가율 기준
     FRAME_DIVERGENCE = 0.5      # frame 분포 JS divergence 기준
     RESPONSE_SHIFT_THRESHOLD = 0.3
     SPREAD_GROWTH = 0.5         # entropy 증가율
+
+    # _unknown 이슈 및 노이즈 엔티티 필터
+    ISSUE_BLACKLIST = {"_unknown", "_none", ""}
+    TARGET_BLACKLIST = {
+        "_none", "", "지금", "현재", "최근", "우선", "다만",
+        "그래서", "따라서", "그런데", "그러나", "하지만",
+        "국회", "정부", "우리", "이것", "그것",
+    }
 
     # 종합 점수 가중치
     WEIGHTS = {
@@ -56,6 +65,12 @@ class SignalDetector:
 
         for key, feat in current.items():
             issue_id, target, committee = key
+
+            # 노이즈 필터: _unknown 이슈, 블랙리스트 타깃 건너뛰기
+            if issue_id in self.ISSUE_BLACKLIST:
+                continue
+            if target in self.TARGET_BLACKLIST:
+                continue
 
             hist = history.get(key, [])
             if len(hist) < 2:
@@ -117,7 +132,7 @@ class SignalDetector:
             # 신호 유형 결정
             signal_type = self._classify_signal(scores)
 
-            if composite > 0.15 or burst_z > self.BURST_ZSCORE:
+            if composite > self.COMPOSITE_THRESHOLD or burst_z > self.BURST_ZSCORE:
                 # evidence packet 조립
                 evidence = self._build_evidence(key, year_week)
 
