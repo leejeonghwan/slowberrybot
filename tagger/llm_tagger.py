@@ -51,29 +51,59 @@ except ImportError:
     HAS_REQUESTS = False
 
 
+# ── 유효값 정의 (프롬프트 + 검증 공용) ──
+VALID_VALUES = {
+    "speech_act": {
+        "질문", "비판", "공격", "방어", "제안", "지지", "반대",
+        "보고", "설명", "수사적질문", "수락", "정보제공", "의례", "서술",
+    },
+    "stance_on_issue": {"찬성", "반대", "조건부찬성", "유보"},
+    "frame_type": {
+        "피해구제", "형사처벌", "재정부담", "시장안정",
+        "공정성", "법적정당성", "집행가능성", "국가안보",
+    },
+    "response_mode": {"직답", "회피", "검토약속", "수용", "거부"},
+    "tone_conflict": {"협력", "중립", "긴장", "갈등", "적대"},
+}
+
+# LLM JSON 키 → DB axis 매핑
+LLM_KEY_TO_AXIS = {
+    "speech_act": "speech_act",
+    "stance": "stance_on_issue",
+    "frame_type": "frame_type",
+    "response_mode": "response_mode",
+    "tone": "tone_conflict",
+}
+
+# 빈값 취급 (DB에 넣지 않음)
+NULL_VALUES = {"없음", "null", "해당없음", "N/A", "", None}
+
+
 # ── 배치 태깅 프롬프트 ──
 BATCH_TAGGING_PROMPT = """당신은 국회 회의록 분석 전문가입니다.
 아래 국회 발언 절(clause) {count}건을 분석하여 각각 JSON으로 태그를 부여하세요.
 
-## 태그 축
+⚠️ 중요: 반드시 아래 목록의 값만 사용하세요. 목록에 없는 값은 절대 쓰지 마세요.
 
-1. speech_act (하나 선택):
-   질문 / 비판 / 공격 / 방어 / 제안 / 지지 / 반대 / 보고 / 설명 / 수사적질문 / 수락 / 정보제공 / 의례 / 서술
+## 태그 축 (괄호 안 값 중 정확히 하나만 선택)
 
-2. target (비판/공격/요구의 대상, 없으면 null):
-   구체적 대상명 (부처명, 인물, 정당 등)
+1. speech_act:
+   [질문, 비판, 공격, 방어, 제안, 지지, 반대, 보고, 설명, 수사적질문, 수락, 정보제공, 의례, 서술]
+
+2. target (비판/공격/요구의 대상):
+   구체적 대상명 (부처명, 인물, 정당 등). 없으면 null.
 
 3. stance (이슈에 대한 입장):
-   찬성 / 반대 / 조건부찬성 / 유보 / 없음
+   [찬성, 반대, 조건부찬성, 유보, 없음]
 
-4. frame_type (프레임):
-   피해구제 / 형사처벌 / 재정부담 / 시장안정 / 공정성 / 법적정당성 / 집행가능성 / 국가안보 / 없음
+4. frame_type (논증 프레임):
+   [피해구제, 형사처벌, 재정부담, 시장안정, 공정성, 법적정당성, 집행가능성, 국가안보, 없음]
 
-5. response_mode (답변자인 경우만):
-   직답 / 회피 / 검토약속 / 수용 / 거부 / 없음
+5. response_mode (답변자인 경우만, 질문자는 "없음"):
+   [직답, 회피, 검토약속, 수용, 거부, 없음]
 
-6. tone:
-   협력 / 중립 / 긴장 / 갈등 / 적대
+6. tone (발언 톤):
+   [협력, 중립, 긴장, 갈등, 적대]
 
 ## 발언 절 목록
 
@@ -82,7 +112,7 @@ BATCH_TAGGING_PROMPT = """당신은 국회 회의록 분석 전문가입니다.
 ## 출력 형식 (JSON 배열만, 설명 없이)
 ```json
 [
-  {{"id": 1, "speech_act": "...", "target": null, "stance": "없음", "frame_type": "없음", "response_mode": "없음", "tone": "중립"}},
+  {{"id": 1, "speech_act": "질문", "target": null, "stance": "없음", "frame_type": "없음", "response_mode": "없음", "tone": "중립"}},
   ...
 ]
 ```"""
@@ -92,6 +122,8 @@ BATCH_TAGGING_PROMPT = """당신은 국회 회의록 분석 전문가입니다.
 SINGLE_TAGGING_PROMPT = """당신은 국회 회의록 분석 전문가입니다.
 아래 발언 절을 분석하여 JSON으로 태그를 부여하세요.
 
+⚠️ 중요: 반드시 대괄호 안의 값만 사용하세요. 목록에 없는 값은 절대 쓰지 마세요.
+
 ## 컨텍스트
 - 회의: {meeting_type} / {committee}
 - 발언자: {speaker_name} ({speaker_role})
@@ -99,17 +131,17 @@ SINGLE_TAGGING_PROMPT = """당신은 국회 회의록 분석 전문가입니다.
 ## 발언 절
 {clause_text}
 
-## 태그 축
-1. speech_act: 질문/비판/공격/방어/제안/지지/반대/보고/설명/수사적질문/수락/정보제공/의례/서술
-2. target: 대상명 또는 null
-3. stance: 찬성/반대/조건부찬성/유보/없음
-4. frame_type: 피해구제/형사처벌/재정부담/시장안정/공정성/법적정당성/집행가능성/국가안보/없음
-5. response_mode: 직답/회피/검토약속/수용/거부/없음
-6. tone: 협력/중립/긴장/갈등/적대
+## 태그 축 (대괄호 안 값 중 정확히 하나만 선택)
+1. speech_act: [질문, 비판, 공격, 방어, 제안, 지지, 반대, 보고, 설명, 수사적질문, 수락, 정보제공, 의례, 서술]
+2. target: 구체적 대상명 또는 null
+3. stance: [찬성, 반대, 조건부찬성, 유보, 없음]
+4. frame_type: [피해구제, 형사처벌, 재정부담, 시장안정, 공정성, 법적정당성, 집행가능성, 국가안보, 없음]
+5. response_mode: [직답, 회피, 검토약속, 수용, 거부, 없음]
+6. tone: [협력, 중립, 긴장, 갈등, 적대]
 
 ## 출력 (JSON만)
 ```json
-{{"speech_act": "...", "target": null, "stance": "없음", "frame_type": "없음", "response_mode": "없음", "tone": "중립"}}
+{{"speech_act": "질문", "target": null, "stance": "없음", "frame_type": "없음", "response_mode": "없음", "tone": "중립"}}
 ```"""
 
 
@@ -269,23 +301,33 @@ class LLMTagger:
         return {"tagged": tagged, "failed": len(rows) - tagged}
 
     def _save_tags(self, clause_id: int, result: dict):
-        """태깅 결과를 DB에 저장"""
-        tag_pairs = [
-            ("speech_act", result.get("speech_act")),
-            ("stance_on_issue", result.get("stance")),
-            ("frame_type", result.get("frame_type")),
-            ("response_mode", result.get("response_mode")),
-            ("tone_conflict", result.get("tone")),
-        ]
+        """
+        태깅 결과를 DB에 저장 (v3: 유효값 검증).
+        - LLM 키(stance, tone) → DB axis(stance_on_issue, tone_conflict) 매핑
+        - VALID_VALUES에 없는 값은 버리고 로그 남김
+        """
+        for llm_key, axis in LLM_KEY_TO_AXIS.items():
+            value = result.get(llm_key)
 
-        for axis, value in tag_pairs:
-            if value and value not in ("없음", "null", None, "해당없음"):
-                # speech_act가 리스트인 경우
-                if isinstance(value, list):
-                    for v in value:
-                        self._insert_tag(clause_id, axis, v)
-                else:
-                    self._insert_tag(clause_id, axis, value)
+            # 빈값 건너뛰기
+            if value in NULL_VALUES:
+                continue
+
+            # 리스트 처리 (드물지만 방어)
+            values = value if isinstance(value, list) else [value]
+
+            for v in values:
+                if v in NULL_VALUES:
+                    continue
+                # 유효값 검증
+                valid_set = VALID_VALUES.get(axis)
+                if valid_set and v not in valid_set:
+                    logger.warning(
+                        f"[clause {clause_id}] 유효하지 않은 값 무시: "
+                        f"{axis}='{v}' (허용: {valid_set})"
+                    )
+                    continue
+                self._insert_tag(clause_id, axis, v)
 
         # target → entity
         target = result.get("target")
