@@ -18,6 +18,9 @@
   /content_fetch [N] - 회의록 본문 HTML 수집 (N건, 없으면 전체)
   /backfill [phase] - 22대 국회 전체 백필 (phase: 1~7, 없으면 전체)
   /backfill_status  - 백필 진행 상황 확인
+  /detect_all     - 전체 주간 신호 탐지 (이어서)
+  /analyze        - 신호 점수 분포 분석
+  /grind          - 🔨 노가다 체인 (수집→파싱→태깅→집계→탐지)
   /pipeline       - 전체 파이프라인 실행 (수집→파싱→태깅→집계→탐지→리포트)
   /help           - 도움말
 """
@@ -266,13 +269,13 @@ class Orchestrator:
             f"{stats.get('weeks', 0)}주 / feature {stats.get('rows_created', 0):,}개"
         )
 
-    def detect(self, year_week: str = None, scan_all: bool = False) -> str:
+    def detect(self, year_week: str = None, scan_all: bool = False, fresh: bool = False) -> str:
         from detector.signal_detector import SignalDetector
         detector = SignalDetector()
 
         if scan_all:
-            # 전체 주간 스캔
-            return self._detect_all(detector)
+            # 전체 주간 스캔 (fresh=True면 기존 삭제, False면 이어서)
+            return self._detect_all(detector, fresh=fresh)
 
         if not year_week:
             now = datetime.now()
@@ -294,29 +297,55 @@ class Orchestrator:
             )
         return "\n".join(lines)
 
-    def _detect_all(self, detector) -> str:
-        """전체 주간에 대해 신호 탐지"""
+    def _detect_all(self, detector, fresh=False) -> str:
+        """
+        전체 주간에 대해 신호 탐지.
+        fresh=True: 기존 신호 삭제 후 재탐지
+        fresh=False: 이미 탐지된 주간은 건너뜀 (안전 모드)
+        """
         conn = sqlite3.connect(str(DB_PATH))
-        # 기존 신호 삭제
-        conn.execute("DELETE FROM signal")
-        conn.commit()
 
-        weeks = conn.execute(
+        if fresh:
+            conn.execute("DELETE FROM signal")
+            conn.commit()
+            logger.info("[detect_all] 기존 신호 전체 삭제 (fresh 모드)")
+
+        # 이미 탐지된 주간 확인
+        done_weeks = set(
+            row[0] for row in
+            conn.execute("SELECT DISTINCT year_week FROM signal").fetchall()
+        )
+
+        all_weeks = conn.execute(
             "SELECT DISTINCT year_week FROM weekly_feature ORDER BY year_week"
         ).fetchall()
         conn.close()
 
+        # 미완료 주간만 필터
+        todo_weeks = [(yw,) for (yw,) in all_weeks if yw not in done_weeks]
+        skipped = len(all_weeks) - len(todo_weeks)
+
+        if skipped > 0:
+            logger.info(f"[detect_all] {skipped}주 건너뜀 (이미 탐지), {len(todo_weeks)}주 진행")
+
         total_signals = 0
-        for i, (yw,) in enumerate(weeks, 1):
+        for i, (yw,) in enumerate(todo_weeks, 1):
             signals = detector.detect_week(yw)
             total_signals += len(signals)
             if i % 10 == 0:
-                logger.info(f"[detect] 진행: {i}/{len(weeks)} ({total_signals}개 신호)")
+                logger.info(f"[detect] 진행: {i}/{len(todo_weeks)} ({total_signals}개 신호)")
 
         detector.close()
+
+        # 전체 신호 수 조회
+        conn2 = sqlite3.connect(str(DB_PATH))
+        grand_total = conn2.execute("SELECT COUNT(*) FROM signal").fetchone()[0]
+        conn2.close()
+
         return (
             f"📡 **전체 신호 탐지 완료**\n"
-            f"{len(weeks)}주 스캔 / {total_signals}개 신호"
+            f"{len(all_weeks)}주 중 {len(todo_weeks)}주 탐지 ({skipped}주 건너뜀)\n"
+            f"이번 탐지: {total_signals}개 / 전체 누적: {grand_total:,}개"
         )
 
     def report(self, year_week: str = None) -> str:
@@ -386,6 +415,72 @@ class Orchestrator:
             ""
         ] + results)
         return summary
+
+    def analyze_signals(self) -> str:
+        """신호 점수 분포 분석 (텔레그램 요약용)"""
+        conn = sqlite3.connect(str(DB_PATH))
+
+        total = conn.execute("SELECT COUNT(*) FROM signal").fetchone()[0]
+        if total == 0:
+            conn.close()
+            return "❌ 신호 데이터 없음. grind를 먼저 실행하세요."
+
+        weeks = conn.execute("SELECT COUNT(DISTINCT year_week) FROM signal").fetchone()[0]
+        issues = conn.execute("SELECT COUNT(DISTINCT issue_id) FROM signal").fetchone()[0]
+
+        # 점수 분포
+        scores = [r[0] for r in conn.execute(
+            "SELECT composite_score FROM signal ORDER BY composite_score DESC"
+        ).fetchall()]
+
+        # 임계값별 카운트
+        thresholds = [0.15, 0.20, 0.25, 0.30, 0.40, 0.50]
+        threshold_lines = []
+        for t in thresholds:
+            cnt = sum(1 for s in scores if s >= t)
+            marker = " ◀현재" if t == 0.15 else ""
+            threshold_lines.append(f"  >={t:.2f}: {cnt:,}개{marker}")
+
+        # signal_type 분포
+        types = conn.execute(
+            "SELECT signal_type, COUNT(*) FROM signal GROUP BY signal_type ORDER BY COUNT(*) DESC"
+        ).fetchall()
+
+        # 상위 10 신호
+        top = conn.execute("""
+            SELECT year_week, signal_type, issue_id, target_entity, composite_score
+            FROM signal ORDER BY composite_score DESC LIMIT 10
+        """).fetchall()
+
+        conn.close()
+
+        avg_score = sum(scores) / len(scores)
+        median = sorted(scores)[len(scores) // 2]
+        per_week = total / max(weeks, 1)
+
+        lines = [
+            f"📊 **신호 분석**",
+            f"전체: {total:,}개 / {weeks}주 / {issues}개 이슈",
+            f"주당 평균: {per_week:.0f}개",
+            f"점수: avg={avg_score:.3f}, median={median:.3f}, max={max(scores):.3f}",
+            "",
+            "임계값별:",
+        ] + threshold_lines + [
+            "",
+            "유형별:",
+        ] + [f"  {t}: {c:,}개" for t, c in types] + [
+            "",
+            "상위 10:",
+        ]
+        for yw, stype, issue, target, score in top:
+            emoji = "🔴" if score > 0.5 else "🟡" if score > 0.3 else "🟢"
+            lines.append(f"{emoji} [{yw}] {issue}→{target} ({score:.3f})")
+
+        # 권장
+        top_10pct = scores[max(1, int(len(scores) * 0.10)) - 1]
+        lines.append(f"\n💡 상위 10% 기준: >= {top_10pct:.3f}")
+
+        return "\n".join(lines)
 
     def full_pipeline(self) -> str:
         """전체 파이프라인 순차 실행 (LLM 포함)"""
@@ -615,6 +710,16 @@ if HAS_TELEGRAM:
 
         await update.message.reply_text(result, parse_mode="Markdown")
 
+    async def cmd_analyze(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """신호 분석"""
+        await update.message.reply_text("📊 신호 분석 중...")
+        msg = orch.analyze_signals()
+        if len(msg) > 4000:
+            for i in range(0, len(msg), 4000):
+                await update.message.reply_text(msg[i:i+4000], parse_mode="Markdown")
+        else:
+            await update.message.reply_text(msg, parse_mode="Markdown")
+
     async def cmd_pipeline(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("🔄 전체 파이프라인 시작... (시간이 걸립니다)")
         msg = orch.full_pipeline()
@@ -639,6 +744,7 @@ if HAS_TELEGRAM:
 /backfill [phase] - 22대 전체 백필
 /backfill\\_status - 백필 진행 상황
 /detect\\_all - 전체 주간 신호 탐지
+/analyze - 📊 신호 점수 분포 분석
 /grind - 🔨 노가다 체인 (수집→파싱→태깅→집계→탐지)
 /pipeline - 전체 파이프라인 (LLM 포함)
 
@@ -673,6 +779,7 @@ def run_bot():
     app.add_handler(CommandHandler("report", cmd_report))
     app.add_handler(CommandHandler("signals", cmd_signals))
     app.add_handler(CommandHandler("detect_all", cmd_detect_all))
+    app.add_handler(CommandHandler("analyze", cmd_analyze))
     app.add_handler(CommandHandler("grind", cmd_grind))
     app.add_handler(CommandHandler("pipeline", cmd_pipeline))
     app.add_handler(CommandHandler("help", cmd_help))
@@ -691,7 +798,9 @@ def run_cli():
     import sys
     if len(sys.argv) < 2:
         print("사용법: python bot.py <command> [args]")
-        print("명령어: status, discover, backfill, backfill_status, collect, parse, tag_rule, tag_rule_stats, tag_llm, aggregate, detect, report, signals, pipeline")
+        print("명령어: status, discover, backfill, backfill_status, collect, parse,")
+        print("        tag_rule, tag_rule_stats, tag_llm, aggregate, detect, detect_all,")
+        print("        detect_fresh, analyze, grind, report, signals, pipeline")
         return
 
     cmd = sys.argv[1]
@@ -719,6 +828,8 @@ def run_cli():
         "aggregate": lambda: orch.aggregate(args[0] if args else None),
         "detect": lambda: orch.detect(args[0] if args else None),
         "detect_all": lambda: orch.detect(scan_all=True),
+        "detect_fresh": lambda: orch.detect(scan_all=True, fresh=True),
+        "analyze": lambda: print(orch.analyze_signals()),
         "grind": lambda: orch.grind(lambda msg: print(msg)),
         "report": lambda: orch.report(args[0] if args else None),
         "signals": lambda: orch.signals(int(args[0]) if args else 10),
