@@ -187,30 +187,40 @@ class Orchestrator:
             proc.close()
             return f"❌ 회의 {meeting_id}의 원문을 찾을 수 없음"
         else:
-            # 미처리분 배치 파싱
+            # 미처리분 전체 파싱 (한도 없음)
             conn = sqlite3.connect(str(DB_PATH))
             unprocessed = conn.execute("""
                 SELECT m.meeting_id, m.raw_text_path
                 FROM meeting m
                 LEFT JOIN utterance u ON m.meeting_id = u.meeting_id
                 WHERE u.utterance_id IS NULL AND m.raw_text_path IS NOT NULL
-                LIMIT 20
             """).fetchall()
             conn.close()
 
-            total = {"meetings": 0, "utterances": 0}
-            for mid, rpath in unprocessed:
-                if rpath and Path(rpath).exists():
-                    if rpath.endswith(".json"):
-                        stats = proc.process_meeting(mid, json_path=rpath)
-                    else:
-                        raw_text = Path(rpath).read_text(encoding="utf-8")
-                        stats = proc.process_meeting(mid, raw_text=raw_text)
-                    total["meetings"] += 1
-                    total["utterances"] += stats.get("utterances", 0)
+            count = len(unprocessed)
+            total = {"meetings": 0, "utterances": 0, "errors": 0}
+            for i, (mid, rpath) in enumerate(unprocessed, 1):
+                try:
+                    if rpath and Path(rpath).exists():
+                        if rpath.endswith(".json"):
+                            stats = proc.process_meeting(mid, json_path=rpath)
+                        else:
+                            raw_text = Path(rpath).read_text(encoding="utf-8")
+                            stats = proc.process_meeting(mid, raw_text=raw_text)
+                        total["meetings"] += 1
+                        total["utterances"] += stats.get("utterances", 0)
+                except Exception as e:
+                    total["errors"] += 1
+                    logger.error(f"[parse] {mid} 실패: {e}")
+
+                if i % 50 == 0:
+                    logger.info(f"[parse] 진행: {i}/{count} ({total['utterances']:,}개 발언)")
 
             proc.close()
-            return f"✅ 배치 파싱 완료: {total['meetings']}개 회의, {total['utterances']}개 발언"
+            return (
+                f"✅ 배치 파싱 완료: {total['meetings']}개 회의, "
+                f"{total['utterances']:,}개 발언, {total['errors']}개 오류"
+            )
 
     def tag_rule(self, limit: int = 0, notify_fn=None) -> str:
         """규칙 기반 태깅 (limit=0이면 전체, Pi5 장기 실행용)"""
@@ -256,9 +266,13 @@ class Orchestrator:
             f"{stats.get('weeks', 0)}주 / feature {stats.get('rows_created', 0):,}개"
         )
 
-    def detect(self, year_week: str = None) -> str:
+    def detect(self, year_week: str = None, scan_all: bool = False) -> str:
         from detector.signal_detector import SignalDetector
         detector = SignalDetector()
+
+        if scan_all:
+            # 전체 주간 스캔
+            return self._detect_all(detector)
 
         if not year_week:
             now = datetime.now()
@@ -279,6 +293,31 @@ class Orchestrator:
                 f"({s['signal_type']}, {score:.3f})"
             )
         return "\n".join(lines)
+
+    def _detect_all(self, detector) -> str:
+        """전체 주간에 대해 신호 탐지"""
+        conn = sqlite3.connect(str(DB_PATH))
+        # 기존 신호 삭제
+        conn.execute("DELETE FROM signal")
+        conn.commit()
+
+        weeks = conn.execute(
+            "SELECT DISTINCT year_week FROM weekly_feature ORDER BY year_week"
+        ).fetchall()
+        conn.close()
+
+        total_signals = 0
+        for i, (yw,) in enumerate(weeks, 1):
+            signals = detector.detect_week(yw)
+            total_signals += len(signals)
+            if i % 10 == 0:
+                logger.info(f"[detect] 진행: {i}/{len(weeks)} ({total_signals}개 신호)")
+
+        detector.close()
+        return (
+            f"📡 **전체 신호 탐지 완료**\n"
+            f"{len(weeks)}주 스캔 / {total_signals}개 신호"
+        )
 
     def report(self, year_week: str = None) -> str:
         from explainer.narrator import Narrator
@@ -312,8 +351,44 @@ class Orchestrator:
             lines.append(f"{emoji} [{yw}] {issue} → {target} ({stype}, {score:.3f})")
         return "\n".join(lines)
 
+    def grind(self, notify_fn=None) -> str:
+        """
+        Pi5 노가다 체인: LLM 없이 돌릴 수 있는 전체 과정.
+        content_fetch → parse → tag_rule → aggregate → detect_all
+        """
+        _notify = notify_fn or (lambda m: logger.info(m))
+        results = []
+        start_time = datetime.now()
+
+        steps = [
+            ("회의록 수집", lambda: self.content_fetch(0, _notify)),
+            ("발언 파싱", lambda: self.parse()),
+            ("규칙 태깅", lambda: self.tag_rule(0, _notify)),
+            ("주간 집계", lambda: self.aggregate(notify_fn=_notify)),
+            ("전체 신호 탐지", lambda: self.detect(scan_all=True)),
+        ]
+
+        for name, fn in steps:
+            _notify(f"⏳ {name} 시작...")
+            try:
+                result = fn()
+                results.append(f"✅ {name}: 완료")
+                _notify(f"✅ {name} 완료")
+                logger.info(f"[grind] {name}: {result[:200]}")
+            except Exception as e:
+                results.append(f"❌ {name}: {e}")
+                _notify(f"❌ {name} 실패: {e}")
+                logger.error(f"[grind] {name} 실패: {e}")
+
+        elapsed = datetime.now() - start_time
+        summary = "\n".join([
+            f"🔨 **Pi5 노가다 체인 완료** ({elapsed})",
+            ""
+        ] + results)
+        return summary
+
     def full_pipeline(self) -> str:
-        """전체 파이프라인 순차 실행"""
+        """전체 파이프라인 순차 실행 (LLM 포함)"""
         results = []
         steps = [
             ("수집", lambda: self.collect()),
@@ -501,6 +576,45 @@ if HAS_TELEGRAM:
         msg = orch.signals(limit)
         await update.message.reply_text(msg, parse_mode="Markdown")
 
+    async def cmd_detect_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        await update.message.reply_text("📡 전체 주간 신호 탐지 시작...")
+        import functools
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None,
+            functools.partial(orch.detect, scan_all=True)
+        )
+        await update.message.reply_text(result, parse_mode="Markdown")
+
+    async def cmd_grind(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Pi5 노가다 체인: LLM 없이 전체 과정"""
+        await update.message.reply_text(
+            "🔨 **노가다 체인 시작**\n"
+            "수집 → 파싱 → 태깅 → 집계 → 탐지\n"
+            "시간이 걸립니다. 놔두세요."
+        )
+
+        pending_messages = []
+        def sync_notify(msg):
+            pending_messages.append(msg)
+
+        import functools
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None,
+            functools.partial(orch.grind, sync_notify)
+        )
+
+        for msg in pending_messages:
+            try:
+                if len(msg) > 4000:
+                    msg = msg[:4000] + "..."
+                await update.message.reply_text(msg, parse_mode="Markdown")
+            except Exception:
+                await update.message.reply_text(msg)
+
+        await update.message.reply_text(result, parse_mode="Markdown")
+
     async def cmd_pipeline(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("🔄 전체 파이프라인 시작... (시간이 걸립니다)")
         msg = orch.full_pipeline()
@@ -524,7 +638,9 @@ if HAS_TELEGRAM:
 /content\\_fetch [N] - 회의록 본문 수집
 /backfill [phase] - 22대 전체 백필
 /backfill\\_status - 백필 진행 상황
-/pipeline - 전체 파이프라인
+/detect\\_all - 전체 주간 신호 탐지
+/grind - 🔨 노가다 체인 (수집→파싱→태깅→집계→탐지)
+/pipeline - 전체 파이프라인 (LLM 포함)
 
 📌 주간 형식: 2026-W11"""
         await update.message.reply_text(help_text, parse_mode="Markdown")
@@ -556,6 +672,8 @@ def run_bot():
     app.add_handler(CommandHandler("detect", cmd_detect))
     app.add_handler(CommandHandler("report", cmd_report))
     app.add_handler(CommandHandler("signals", cmd_signals))
+    app.add_handler(CommandHandler("detect_all", cmd_detect_all))
+    app.add_handler(CommandHandler("grind", cmd_grind))
     app.add_handler(CommandHandler("pipeline", cmd_pipeline))
     app.add_handler(CommandHandler("help", cmd_help))
     app.add_handler(CommandHandler("start", cmd_help))
@@ -600,6 +718,8 @@ def run_cli():
         "tag_llm": lambda: orch.tag_llm(int(args[0]) if args else 50),
         "aggregate": lambda: orch.aggregate(args[0] if args else None),
         "detect": lambda: orch.detect(args[0] if args else None),
+        "detect_all": lambda: orch.detect(scan_all=True),
+        "grind": lambda: orch.grind(lambda msg: print(msg)),
         "report": lambda: orch.report(args[0] if args else None),
         "signals": lambda: orch.signals(int(args[0]) if args else 10),
         "pipeline": lambda: orch.full_pipeline(),
