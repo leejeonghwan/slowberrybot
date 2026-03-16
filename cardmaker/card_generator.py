@@ -63,23 +63,34 @@ CARD_PROMPT = """아래는 국회 회의록 한 안건에 대한 발언 묶음�
 [발언]
 {utterances_text}
 
-위 발언 묶음을 아래 형식으로 요약하세요.
+위 발언을 분석해서 독립된 쟁점별로 나누고, 각 쟁점을 별도 카드로 만드세요.
+쟁점이 1개면 카드 1개, 3개면 카드 3개를 만듭니다.
 반드시 발언 내용에 근거해야 하며, 추론이나 배경지식을 추가하지 마세요.
-발언 내용이 실질적 쟁점 없이 절차적이거나 의례적이면, "skip": true를 반환하세요.
+발언 내용 전체가 실질적 쟁점 없이 절차적이거나 의례적이면, {{"skip": true}}만 반환하세요.
 
-반드시 JSON만 출력하세요:
-{{
-  "skip": false,
-  "title": "이슈 핵심 + 날짜·회의명 포함. 예) 검찰청 폐지안, 구속사건 처리 공백 우려 — 2025년 9월 25일 본회의",
-  "summary": "무슨 일이 있었는지 2~3문장 요약",
-  "comments": [
-    {{"speaker": "홍길동", "party": "민주당", "role": "의원", "quote": "쿠팡이 3400만 명의 개인정보를 유출해 놓고도 과징금 한 푼 안 냈다. 당장 CEO를 체포해야 하는 것 아닌가", "context": "쿠팡 개인정보 유출 사건의 책임자 처벌을 촉구"}},
-    {{"speaker": "김철수", "party": "국민의힘", "role": "의원", "quote": "과학기술정보통신부 R&D 예산 8조 원이 본래 목적과 전혀 다르게 사용되고 있다. 감사원이 특별감사에 나서야 한다", "context": "R&D 예산 유용 의혹 제기 및 감사원 감사 요구"}}
-  ],
-  "keywords": ["키워드1", "키워드2", "키워드3"],
-  "persons": ["홍길동", "김철수"],
-  "orgs": ["금융감독원", "금융위원회"]
-}}
+반드시 JSON 배열만 출력하세요:
+[
+  {{
+    "title": "쟁점 핵심 + 날짜·회의명. 예) 쿠팡 3400만 명 개인정보 유출, 의장 주식매각 의혹 — 2025년 12월 3일 법사위",
+    "summary": "무슨 일이 있었는지 상황 재구성. 누가 무엇을 주장/반박했고 어떻게 전개됐는지 흐름이 보이도록 3~5문장으로 서술.",
+    "comments": [
+      {{"speaker": "홍길동", "party": "민주당", "role": "의원", "quote": "쿠팡이 3400만 명의 개인정보를 유출해 놓고도 과징금 한 푼 안 냈다. 당장 CEO를 체포해야 하는 것 아닌가"}},
+      {{"speaker": "김철수", "party": "국민의힘", "role": "의원", "quote": "과기부에서 무슨 조치를 했습니까? 4월 롯데카드, 9월 SK텔레콤 사건이 났을 때 뭘 했습니까?"}}
+    ],
+    "keywords": ["쿠팡", "개인정보유출", "보이스피싱"],
+    "persons": ["홍길동", "김철수"],
+    "orgs": ["쿠팡", "과학기술정보통신부"]
+  }}
+]
+
+쟁점 분리 규칙:
+- 같은 주제에 대한 찬반 공방은 하나의 쟁점 (분리하지 않음)
+- 서로 다른 주제는 별도 쟁점으로 분리 (예: 쿠팡 유출 ≠ 성추행 논란 ≠ R&D 예산)
+- 판단이 어려우면 합치기보다 분리하는 쪽으로
+
+summary 규칙:
+- 단순 나열이 아니라 상황 재구성. "누가 뭘 했고 → 상대가 어떻게 반박했고 → 결과가 어떻게 됐다" 흐름을 서술
+- 3~5문장. 이 요약만 읽어도 무슨 일이 있었는지 이해할 수 있어야 함
 
 코멘트 규칙:
 - quote: 원문에서 핵심이 되는 2~4문장을 발췌. 반드시 주어·목적어를 포함하여
@@ -88,9 +99,8 @@ CARD_PROMPT = """아래는 국회 회의록 한 안건에 대한 발언 묶음�
   좋은 예: "쿠팡이 3400만 명의 개인정보를 유출해 놓고도 과징금 한 푼 안 냈다. 당장 CEO를 체포해야 하는 것 아닌가"
   원문 표현을 최대한 살리되, 불필요한 반복·추임새·호칭은 제거.
   문장이 길면 "…"으로 중략 가능. 반드시 발언 원문에 실제로 있는 표현이어야 함.
-- context: quote가 어떤 맥락에서 나온 발언인지 1문장으로 설명
 - 같은 사람이 여러 논점을 말했으면 별도 코멘트로 분리
-- 최소 3개, 평균 7~8개, 최대 20개. 발언 수가 100건 이상이면 최소 5개.
+- 카드당 최소 3개, 평균 7~8개, 최대 20개
 - 찬성·반대·정부 측 등 다양한 입장이 골고루 포함되도록
 - 더불어민주당은 "민주당"으로 표기
 
@@ -193,7 +203,7 @@ class CardGenerator:
             logger.error(f"LLM 호출 오류: {e}")
             return None
 
-    def _parse_json(self, text: str) -> dict | None:
+    def _parse_json(self, text: str) -> dict | list | None:
         if not text:
             return None
         text = text.strip()
@@ -487,7 +497,7 @@ class CardGenerator:
                 if substantive:
                     chunks = [{"title": "(전체)", "utterances": substantive}]
 
-            # 각 청크 → 카드
+            # 각 청크 → 카드 (쟁점별 복수 카드 가능)
             cards = []
             for i, chunk in enumerate(chunks, 1):
                 utts = chunk["utterances"]
@@ -500,26 +510,40 @@ class CardGenerator:
                     chunk_title=chunk["title"],
                     utterances_text=utt_text,
                 )
-                resp = self._call_llm(prompt, max_tokens=2048)
-                card = self._parse_json(resp)
+                # 쟁점 분리 시 출력이 길어질 수 있으므로 max_tokens 확대
+                resp = self._call_llm(prompt, max_tokens=4096)
+                parsed = self._parse_json(resp)
 
-                if not card:
-                    continue
-                if card.get("skip"):
-                    self.notify_fn(f"  ⏭ 청크 {i}: {chunk['title'][:30]} (건너뜀)")
-                    continue
-                if "title" not in card:
+                if not parsed:
                     continue
 
-                # 메타데이터 추가
-                card["meeting_id"] = meeting_id
-                card["meeting_date"] = info.get("date", "")
-                card["committee"] = info.get("committee", "")
-                card["chunk_title"] = chunk["title"]
-                card["utterance_ids"] = [u["utterance_id"] for u in utts]
-                card["utterance_count"] = len(utts)
-                cards.append(card)
-                self.notify_fn(f"  ✅ 청크 {i}: {card['title'][:50]}")
+                # 배열 또는 단일 객체 모두 처리
+                if isinstance(parsed, dict):
+                    card_list = [parsed]
+                elif isinstance(parsed, list):
+                    card_list = parsed
+                else:
+                    continue
+
+                for card in card_list:
+                    if not isinstance(card, dict):
+                        continue
+                    if card.get("skip"):
+                        self.notify_fn(
+                            f"  ⏭ 청크 {i}: {chunk['title'][:30]} (건너뜀)")
+                        continue
+                    if "title" not in card:
+                        continue
+
+                    # 메타데이터 추가
+                    card["meeting_id"] = meeting_id
+                    card["meeting_date"] = info.get("date", "")
+                    card["committee"] = info.get("committee", "")
+                    card["chunk_title"] = chunk["title"]
+                    card["utterance_ids"] = [u["utterance_id"] for u in utts]
+                    card["utterance_count"] = len(utts)
+                    cards.append(card)
+                    self.notify_fn(f"  ✅ 청크 {i}: {card['title'][:50]}")
 
                 time.sleep(0.5)  # rate limit
 
@@ -709,14 +733,8 @@ if __name__ == "__main__":
                 label += ")"
             elif role:
                 label += f"[{role}]"
-            quote = c.get("quote", "")
-            context = c.get("context", c.get("text", ""))
-            if quote:
-                print(f"  - {label}: \"{quote}\"")
-                if context:
-                    print(f"    → {context}")
-            else:
-                print(f"  - {label}: \"{context}\"")
+            quote = c.get("quote", c.get("text", ""))
+            print(f"  - {label}: \"{quote}\"")
         print(f"키워드: {', '.join(card.get('keywords', []))}")
         print(f"인물: {', '.join(card.get('persons', []))}")
         print(f"기관: {', '.join(card.get('orgs', []))}")
