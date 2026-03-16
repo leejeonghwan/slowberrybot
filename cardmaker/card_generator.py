@@ -648,8 +648,11 @@ if __name__ == "__main__":
 
     gen = CardGenerator(notify_fn=lambda m: print(m))
 
-    if len(sys.argv) > 1:
-        mid = sys.argv[1]
+    save_to_db = "--no-save" not in sys.argv
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+
+    if args:
+        mid = args[0]
         print(f"\n지정 회의: {mid}\n")
         cards = gen.generate_cards(mid)
     else:
@@ -676,6 +679,11 @@ if __name__ == "__main__":
         else:
             print("적합한 회의가 없습니다")
             sys.exit(1)
+
+    # DB 저장
+    if cards and save_to_db:
+        gen._save_cards(cards)
+        print(f"💾 {len(cards)}개 카드 DB 저장 완료")
 
     # 결과 출력
     print(f"\n{'='*60}")
