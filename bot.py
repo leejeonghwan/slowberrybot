@@ -23,6 +23,8 @@
   /analyze        - 신호 점수 분포 분석
   /grind          - 🔨 노가다 체인 (수집→파싱→태깅→집계→탐지)
   /pipeline       - 전체 파이프라인 실행 (수집→파싱→태깅→집계→탐지→리포트)
+  /dump [signal_id] - 발언 원문 파일로 텔레그램 전송
+  /send_file [경로]  - 임의 파일 텔레그램 전송
   /help           - 도움말
 """
 import os
@@ -846,6 +848,63 @@ if HAS_TELEGRAM:
         msg = orch.full_pipeline()
         await update.message.reply_text(msg, parse_mode="Markdown")
 
+    async def cmd_dump(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """발언 원문을 파일로 추출하여 텔레그램으로 전송.
+        /dump          → 1위 신호
+        /dump 21444    → 특정 signal_id
+        """
+        signal_id = int(context.args[0]) if context.args else None
+        await update.message.reply_text(
+            f"📄 발언 원문 추출 중... (signal_id={signal_id or '1위'})"
+        )
+
+        try:
+            from scripts.dump_clauses import dump_to_file
+            filepath = dump_to_file(signal_id=signal_id)
+
+            if not filepath:
+                await update.message.reply_text("❌ 신호를 찾을 수 없습니다.")
+                return
+
+            with open(filepath, "rb") as f:
+                await update.message.reply_document(
+                    document=f,
+                    filename=Path(filepath).name,
+                    caption=f"📎 발언 원문 ({Path(filepath).name})"
+                )
+        except Exception as e:
+            logger.error(f"[dump] 실패: {e}")
+            await update.message.reply_text(f"❌ 추출 실패: {e}")
+
+    async def cmd_send_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """임의 파일을 텔레그램으로 전송.
+        /send_file /path/to/file.txt
+        """
+        if not context.args:
+            await update.message.reply_text("사용법: /send_file /path/to/file.txt")
+            return
+
+        filepath = " ".join(context.args)
+        p = Path(filepath)
+
+        if not p.exists():
+            await update.message.reply_text(f"❌ 파일 없음: {filepath}")
+            return
+
+        if p.stat().st_size > 50 * 1024 * 1024:  # 50MB 제한
+            await update.message.reply_text("❌ 파일이 50MB를 초과합니다.")
+            return
+
+        try:
+            with open(filepath, "rb") as f:
+                await update.message.reply_document(
+                    document=f,
+                    filename=p.name,
+                    caption=f"📎 {p.name} ({p.stat().st_size:,} bytes)"
+                )
+        except Exception as e:
+            await update.message.reply_text(f"❌ 전송 실패: {e}")
+
     async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
         help_text = """🏛️ **국회 회의록 신호 탐지 시스템**
 
@@ -870,6 +929,8 @@ if HAS_TELEGRAM:
 /rerun - 🔄 재집계+재탐지 (교차오염 수정 후)
 /grind - 🔨 노가다 체인 (수집→파싱→태깅→집계→탐지)
 /pipeline - 전체 파이프라인 (LLM 포함)
+/dump [signal\\_id] - 📄 발언 원문 파일 전송
+/send\\_file [경로] - 📎 임의 파일 전송
 
 📌 주간 형식: 2026-W11"""
         await update.message.reply_text(help_text, parse_mode="Markdown")
@@ -907,6 +968,8 @@ def run_bot():
     app.add_handler(CommandHandler("grind", cmd_grind))
     app.add_handler(CommandHandler("rerun", cmd_rerun))
     app.add_handler(CommandHandler("pipeline", cmd_pipeline))
+    app.add_handler(CommandHandler("dump", cmd_dump))
+    app.add_handler(CommandHandler("send_file", cmd_send_file))
     app.add_handler(CommandHandler("help", cmd_help))
     app.add_handler(CommandHandler("start", cmd_help))
 

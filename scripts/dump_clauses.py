@@ -93,35 +93,27 @@ def gather_clauses(issue, target, year_week):
     return all_rows, date_from, date_to
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("signal_id", nargs="?", type=int)
-    parser.add_argument("--week", type=str)
-    parser.add_argument("--issue", type=str)
-    parser.add_argument("--target", type=str)
-    args = parser.parse_args()
-
-    if args.week and args.issue and args.target:
-        year_week, issue, target = args.week, args.issue, args.target
+def dump_to_string(signal_id=None, year_week=None, issue=None, target=None):
+    """발언 원문을 문자열로 반환. 봇에서 호출 가능."""
+    if year_week and issue and target:
         sig_id, score = None, None
     else:
-        sig = get_signal(args.signal_id)
+        sig = get_signal(signal_id)
         if not sig:
-            print("신호 없음")
-            return
+            return None, "신호 없음"
         sig_id, year_week, issue, target, score = sig
 
     clauses, date_from, date_to = gather_clauses(issue, target, year_week)
 
-    # 출력
-    print(f"{'='*60}")
-    print(f"신호: {issue} → {target} ({year_week})")
+    lines = []
+    lines.append(f"{'='*60}")
+    lines.append(f"신호: {issue} → {target} ({year_week})")
     if score:
-        print(f"signal_id: {sig_id} | score: {score:.3f}")
-    print(f"기간: {date_from} ~ {date_to}")
-    print(f"수집 발언: {len(clauses)}건")
-    print(f"{'='*60}")
-    print()
+        lines.append(f"signal_id: {sig_id} | score: {score:.3f}")
+    lines.append(f"기간: {date_from} ~ {date_to}")
+    lines.append(f"수집 발언: {len(clauses)}건")
+    lines.append(f"{'='*60}")
+    lines.append("")
 
     for i, (cid, text, speaker, role, committee, mdate, act, party) in enumerate(clauses, 1):
         speaker_info = speaker or "?"
@@ -131,9 +123,40 @@ def main():
             speaker_info += f" [{role}]"
 
         act_str = f" <{act}>" if act else ""
-        print(f"--- {i}. {speaker_info}{act_str} | {committee} | {mdate} ---")
-        print(text)
-        print()
+        lines.append(f"--- {i}. {speaker_info}{act_str} | {committee} | {mdate} ---")
+        lines.append(text)
+        lines.append("")
+
+    filename = f"clauses_{target or issue}_{year_week}.txt"
+    return filename, "\n".join(lines)
+
+
+def dump_to_file(signal_id=None, year_week=None, issue=None, target=None,
+                 out_dir="/tmp"):
+    """발언 원문을 파일로 저장하고 경로 반환."""
+    filename, content = dump_to_string(signal_id, year_week, issue, target)
+    if filename is None:
+        return None
+    filepath = Path(out_dir) / filename
+    filepath.write_text(content, encoding="utf-8")
+    return str(filepath)
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("signal_id", nargs="?", type=int)
+    parser.add_argument("--week", type=str)
+    parser.add_argument("--issue", type=str)
+    parser.add_argument("--target", type=str)
+    args = parser.parse_args()
+
+    filename, content = dump_to_string(
+        signal_id=args.signal_id,
+        year_week=args.week,
+        issue=args.issue,
+        target=args.target,
+    )
+    print(content)
 
     conn.close()
 
