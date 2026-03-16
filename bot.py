@@ -35,6 +35,20 @@ import sqlite3
 from datetime import datetime, timedelta
 from pathlib import Path
 
+# ── .env 파일 자동 로드 (python-dotenv 불필요) ──
+_env_path = Path(__file__).resolve().parent / ".env"
+if _env_path.exists():
+    for line in _env_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "=" in line:
+            key, _, val = line.partition("=")
+            key = key.strip()
+            val = val.strip().strip("\"'")
+            if key and key not in os.environ:  # 기존 환경변수 우선
+                os.environ[key] = val
+
 # 텔레그램 봇 라이브러리
 try:
     from telegram import Update, Bot
