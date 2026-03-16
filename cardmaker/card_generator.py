@@ -283,7 +283,8 @@ class CardGenerator:
         return text[:50].strip()
 
     def _split_into_chunks(self, utterances: list[dict]) -> list[dict]:
-        """utterance 리스트를 안건 경계 기준으로 청크로 분리"""
+        """utterance 리스트를 안건 경계 기준으로 청크로 분리.
+        경계가 없으면 화자 전환 기준으로 자동 분할."""
         chunks = []
         current_title = "(도입부)"
         current_utts = []
@@ -309,7 +310,99 @@ class CardGenerator:
                 "utterances": current_utts,
             })
 
-        return chunks
+        # 큰 청크 자동 분할 (안건 경계가 없는 회의 대응)
+        MAX_UTT_PER_CHUNK = 150
+        final_chunks = []
+        for chunk in chunks:
+            if len(chunk["utterances"]) <= MAX_UTT_PER_CHUNK:
+                final_chunks.append(chunk)
+            else:
+                sub = self._split_large_chunk(chunk, MAX_UTT_PER_CHUNK)
+                final_chunks.extend(sub)
+
+        return final_chunks
+
+    def _split_large_chunk(self, chunk: dict,
+                           max_utts: int = 150) -> list[dict]:
+        """큰 청크를 화자(위원) 전환 지점에서 분할.
+        국회 회의: 위원A 질의→답변→위원B 질의→답변 패턴.
+        새 위원이 발언을 시작하는 지점 = 자연스러운 주제 전환점.
+        """
+        utts = chunk["utterances"]
+        # 위원(의원) 역할 화자 목록 수집
+        member_roles = {"의원", "위원", "위원장", "간사"}
+
+        # 위원 전환 지점 찾기: 이전 발언자와 다른 위원이 나오는 시점
+        split_points = []
+        last_member = None
+        for i, u in enumerate(utts):
+            role = u.get("role", "")
+            is_member = any(r in role for r in member_roles)
+            if is_member:
+                if last_member and u["speaker"] != last_member and i > 0:
+                    split_points.append(i)
+                last_member = u["speaker"]
+
+        if not split_points:
+            # 위원 전환을 못 찾으면 단순 균등 분할
+            return self._split_evenly(chunk, max_utts)
+
+        # split_points에서 max_utts 간격에 가장 가까운 지점 선택
+        sub_chunks = []
+        start = 0
+        target = max_utts
+
+        for sp in split_points:
+            if sp >= target and sp - start >= 30:
+                sub_utts = utts[start:sp]
+                sub_chunks.append({
+                    "title": self._infer_sub_title(chunk["title"],
+                                                    sub_utts, len(sub_chunks) + 1),
+                    "utterances": sub_utts,
+                })
+                start = sp
+                target = sp + max_utts
+
+        # 나머지
+        if start < len(utts):
+            sub_utts = utts[start:]
+            if sub_utts:
+                sub_chunks.append({
+                    "title": self._infer_sub_title(chunk["title"],
+                                                    sub_utts, len(sub_chunks) + 1),
+                    "utterances": sub_utts,
+                })
+
+        return sub_chunks if sub_chunks else [chunk]
+
+    def _split_evenly(self, chunk: dict, max_utts: int) -> list[dict]:
+        """위원 전환점을 못 찾을 때 균등 분할."""
+        utts = chunk["utterances"]
+        n_parts = (len(utts) + max_utts - 1) // max_utts
+        part_size = len(utts) // n_parts
+
+        sub_chunks = []
+        for i in range(n_parts):
+            start = i * part_size
+            end = start + part_size if i < n_parts - 1 else len(utts)
+            sub_utts = utts[start:end]
+            if sub_utts:
+                sub_chunks.append({
+                    "title": self._infer_sub_title(chunk["title"],
+                                                    sub_utts, i + 1),
+                    "utterances": sub_utts,
+                })
+        return sub_chunks
+
+    def _infer_sub_title(self, parent_title: str,
+                          utts: list[dict], part_no: int) -> str:
+        """분할된 서브 청크의 제목 생성.
+        첫 발언 화자를 포함해서 맥락 제공."""
+        first_speaker = utts[0]["speaker"] if utts else "?"
+        last_speaker = utts[-1]["speaker"] if utts else "?"
+        if first_speaker == last_speaker:
+            return f"{parent_title} — {first_speaker} 외 질의 (파트 {part_no})"
+        return f"{parent_title} — {first_speaker}~{last_speaker} 질의 (파트 {part_no})"
 
     # ── 포맷팅 ──
 
