@@ -859,8 +859,10 @@ if HAS_TELEGRAM:
         )
 
         try:
-            from scripts.dump_clauses import dump_to_file
-            filepath = dump_to_file(signal_id=signal_id)
+            import importlib
+            mod = importlib.import_module("scripts.dump_clauses")
+            importlib.reload(mod)  # 캐시 방지
+            filepath = mod.dump_to_file(signal_id=signal_id)
 
             if not filepath:
                 await update.message.reply_text("❌ 신호를 찾을 수 없습니다.")
