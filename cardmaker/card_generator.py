@@ -1,15 +1,17 @@
 """
-회의록 → 꼭지 카드 생성기
-──────────────────────────
-회의록 하나를 LLM에게 읽혀서 독립 꼭지 카드로 변환.
+회의록 → 꼭지 카드 생성기 v2
+──────────────────────────────
+회의록 하나를 안건(청크) 단위로 쪼개고, 각 청크를 LLM으로 요약.
 
-2단계 파이프라인:
-  1단계: 발언 목록 → 이슈별 분류 (JSON)
-  2단계: 이슈별 발언 묶음 → 구조화된 카드
+파이프라인:
+  1. 회의록에서 utterance 추출 (절차 발언 = 안건 경계)
+  2. 절차 발언 경계로 청크 분리
+  3. 각 청크의 실질 발언을 LLM에 보내서 카드 생성
 
-각 카드에는 제목, 핵심, 코멘트, 키워드, 인물, 기관, 회의 정보가 포함됨.
+LLM은 분류가 아니라 요약만 하므로 호출 횟수 = 청크 수.
 """
 import json
+import re
 import time
 import sqlite3
 import logging
@@ -47,47 +49,27 @@ except ImportError:
 
 
 # ═══════════════════════════════════════
-# 프롬프트
+# 프롬프트 (1단계: 청크 → 카드)
 # ═══════════════════════════════════════
 
-STAGE1_PROMPT = """아래는 국회 회의록 한 건에서 추출한 발언 목록입니다.
-각 발언에는 번호, 화자, 소속, 역할이 표시되어 있습니다.
+CARD_PROMPT = """아래는 국회 회의록 한 안건에 대한 발언 묶음입니다.
 
 [회의 정보]
 {meeting_info}
 
-[발언 목록]
-{clause_list}
-
-위 발언들을 독립된 이슈 꼭지로 분류하세요.
-
-규칙:
-- 같은 쟁점을 다루는 발언을 하나의 꼭지로 묶으세요
-- 하나의 꼭지에는 최소 3건 이상의 발언이 필요합니다
-- 중복 발언(같은 내용이 반복되는 것)은 하나만 남기세요
-- 한 발언이 여러 이슈를 언급하더라도, 핵심 쟁점 하나에만 배정하세요
-- 어떤 꼭지에도 속하지 않는 발언은 dropped에 넣으세요
-
-반드시 JSON만 출력하세요:
-{{"issues": [{{"title": "이슈 핵심 키워드", "clause_ids": [1, 11, 13], "one_line": "이 이슈가 무엇인지 1문장"}}], "dropped": [5, 7]}}"""
-
-
-STAGE2_PROMPT = """아래는 국회 회의록에서 하나의 이슈로 분류된 발언 묶음입니다.
-
-[회의 정보]
-{meeting_info}
-
-[이슈]
-{issue_title}: {issue_oneline}
+[안건 제목]
+{chunk_title}
 
 [발언]
-{clauses_text}
+{utterances_text}
 
 위 발언 묶음을 아래 형식으로 요약하세요.
 반드시 발언 내용에 근거해야 하며, 추론이나 배경지식을 추가하지 마세요.
+발언 내용이 실질적 쟁점 없이 절차적이거나 의례적이면, "skip": true를 반환하세요.
 
 반드시 JSON만 출력하세요:
 {{
+  "skip": false,
   "title": "이슈 핵심 + 날짜·회의명 포함. 예) 검찰청 폐지안, 구속사건 처리 공백 우려 — 2025년 9월 25일 본회의",
   "summary": "무슨 일이 있었는지 2~3문장 요약",
   "comments": [
@@ -115,11 +97,33 @@ STAGE2_PROMPT = """아래는 국회 회의록에서 하나의 이슈로 분류�
 
 
 # ═══════════════════════════════════════
+# 안건 경계 패턴 (절차 발언 기반)
+# ═══════════════════════════════════════
+
+BOUNDARY_PATTERNS = [
+    re.compile(r'의사일정\s*(제\s*\d+\s*항|에\s*들어가)'),
+    re.compile(r'(상정|회부)합니다'),
+    re.compile(r'(다음은|그다음|다음으로)\s*(의사일정|안건)'),
+    re.compile(r'법률안.*심사'),
+    re.compile(r'대안을?\s*(상정|보고)'),
+]
+
+# 절차적이지만 안건 경계가 아닌 발언
+SKIP_PATTERNS = [
+    re.compile(r'^(예|네|알겠습니다|감사합니다|수고하셨습니다)\s*[.,]?\s*$'),
+    re.compile(r'(개의|산회|폐회|정회|속개)\s*(하겠습니다|합니다|선포)'),
+    re.compile(r'(가결|부결|의결)\s*(되었습니다|됐습니다)'),
+    re.compile(r'(이의|재석위원)\s*(없|과반)'),
+    re.compile(r'(찬성|반대)\s*(하여\s*주시기|투표하여)'),
+]
+
+
+# ═══════════════════════════════════════
 # 카드 생성기
 # ═══════════════════════════════════════
 
 class CardGenerator:
-    """회의록 하나를 꼭지 카드 묶음으로 변환"""
+    """회의록 → 안건 청크 → 꼭지 카드"""
 
     def __init__(self, backend=None, notify_fn=None):
         self.backend = backend or LLM_BACKEND
@@ -148,7 +152,6 @@ class CardGenerator:
     def _call_llm(self, prompt: str, max_tokens: int = 2048) -> str | None:
         if not self.client:
             return None
-
         try:
             if self.backend == "solar":
                 if isinstance(self.client, OpenAI):
@@ -186,7 +189,7 @@ class CardGenerator:
             logger.error(f"LLM 호출 오류: {e}")
             return None
 
-    def _parse_json(self, text: str) -> dict | list | None:
+    def _parse_json(self, text: str) -> dict | None:
         if not text:
             return None
         text = text.strip()
@@ -200,11 +203,11 @@ class CardGenerator:
             logger.error(f"JSON 파싱 실패: {text[:300]}")
             return None
 
-    # ── 회의록에서 발언 추출 ──
+    # ── 데이터 추출 ──
 
     def _get_meeting_info(self, meeting_id: str, conn: sqlite3.Connection) -> dict:
         row = conn.execute("""
-            SELECT meeting_id, committee_id, meeting_date, meeting_type, era
+            SELECT meeting_id, committee_id, meeting_date, meeting_type
             FROM meeting WHERE meeting_id = ?
         """, (meeting_id,)).fetchone()
         if not row:
@@ -214,72 +217,101 @@ class CardGenerator:
             "committee": row[1] or "",
             "date": row[2] or "",
             "type": row[3] or "",
-            "era": row[4] or "",
         }
 
-    def _get_clauses(self, meeting_id: str, conn: sqlite3.Connection,
-                     min_chars: int = 100) -> list[dict]:
-        """회의록에서 실질적 발언(100자+) 추출, 중복 제거"""
+    def _get_utterances(self, meeting_id: str,
+                        conn: sqlite3.Connection) -> list[dict]:
+        """회의록의 모든 utterance를 순서대로 가져오기"""
         rows = conn.execute("""
-            SELECT c.clause_id, c.text, u.speaker_name, u.speaker_role,
-                   (SELECT party FROM member WHERE member_id = u.speaker_id) as party
-            FROM clause c
-            JOIN utterance u ON c.utterance_id = u.utterance_id
-            WHERE u.meeting_id = ?
-              AND c.char_count >= ?
-            ORDER BY c.clause_id
-        """, (meeting_id, min_chars)).fetchall()
+            SELECT utterance_id, sequence_no, speaker_name, speaker_role,
+                   speaker_party, raw_text, char_count, is_procedural
+            FROM utterance
+            WHERE meeting_id = ?
+            ORDER BY sequence_no
+        """, (meeting_id,)).fetchall()
 
-        # 중복 제거 (같은 text가 여러 번)
-        seen_texts = set()
-        clauses = []
-        for cid, text, speaker, role, party in rows:
-            text_key = text[:100]  # 앞 100자로 중복 판단
-            if text_key in seen_texts:
-                continue
-            seen_texts.add(text_key)
-            clauses.append({
-                "id": len(clauses) + 1,  # 1부터 순번
-                "clause_id": cid,
-                "text": text,
-                "speaker": speaker or "?",
-                "party": (party or "").replace("더불어민주당", "민주당"),
+        utts = []
+        for uid, seq, name, role, party, text, chars, is_proc in rows:
+            utts.append({
+                "utterance_id": uid,
+                "seq": seq,
+                "speaker": name or "?",
                 "role": role or "",
+                "party": (party or "").replace("더불어민주당", "민주당"),
+                "text": text or "",
+                "char_count": chars or 0,
+                "is_procedural": bool(is_proc),
+            })
+        return utts
+
+    # ── 청크 분리 ──
+
+    def _is_boundary(self, utt: dict) -> bool:
+        """이 발언이 안건 경계(새 안건 시작)인가?"""
+        if utt["is_procedural"]:
+            text = utt["text"][:200]
+            for pat in BOUNDARY_PATTERNS:
+                if pat.search(text):
+                    return True
+        return False
+
+    def _is_skippable(self, utt: dict) -> bool:
+        """의례적/절차적 발언으로 건너뛸 것인가?"""
+        if utt["char_count"] < 30:
+            return True
+        if utt["is_procedural"]:
+            return True
+        text = utt["text"].strip()
+        for pat in SKIP_PATTERNS:
+            if pat.search(text):
+                return True
+        return False
+
+    def _extract_chunk_title(self, utt: dict) -> str:
+        """경계 발언에서 안건 제목 추출 시도"""
+        text = utt["text"]
+        # "의사일정 제N항 OOO법 일부개정법률안" 패턴
+        m = re.search(r'의사일정\s*제\s*\d+\s*항\s*(.+?)(?:을|를|에 대해|심사)',
+                      text)
+        if m:
+            return m.group(1).strip()
+        # "OOO법 일부개정법률안(대안)" 패턴
+        m = re.search(r'([가-힣]+법[가-힣]*(?:안|대안))', text)
+        if m:
+            return m.group(1).strip()
+        # 못 찾으면 발언 앞부분
+        return text[:50].strip()
+
+    def _split_into_chunks(self, utterances: list[dict]) -> list[dict]:
+        """utterance 리스트를 안건 경계 기준으로 청크로 분리"""
+        chunks = []
+        current_title = "(도입부)"
+        current_utts = []
+
+        for utt in utterances:
+            if self._is_boundary(utt):
+                # 이전 청크 저장
+                if current_utts:
+                    chunks.append({
+                        "title": current_title,
+                        "utterances": current_utts,
+                    })
+                # 새 청크 시작
+                current_title = self._extract_chunk_title(utt)
+                current_utts = []
+            elif not self._is_skippable(utt):
+                current_utts.append(utt)
+
+        # 마지막 청크
+        if current_utts:
+            chunks.append({
+                "title": current_title,
+                "utterances": current_utts,
             })
 
-        return clauses
+        return chunks
 
-    def _format_clause_list(self, clauses: list[dict]) -> str:
-        """1단계용 발언 목록 텍스트"""
-        lines = []
-        for c in clauses:
-            label = c["speaker"]
-            if c["party"]:
-                label += f"({c['party']})"
-            if c["role"]:
-                label += f"[{c['role']}]"
-            # 발언은 앞 200자만 (분류에는 충분)
-            text_preview = c["text"][:200]
-            if len(c["text"]) > 200:
-                text_preview += "…"
-            lines.append(f"[{c['id']}] {label}: {text_preview}")
-        return "\n".join(lines)
-
-    def _format_clauses_for_issue(self, clauses: list[dict],
-                                   clause_ids: list[int]) -> str:
-        """2단계용 이슈별 발언 전문"""
-        lines = []
-        for c in clauses:
-            if c["id"] in clause_ids:
-                label = c["speaker"]
-                if c["party"]:
-                    label += f"({c['party']})"
-                if c["role"]:
-                    label += f"[{c['role']}]"
-                lines.append(f"--- {label} ---")
-                lines.append(c["text"])
-                lines.append("")
-        return "\n".join(lines)
+    # ── 포맷팅 ──
 
     def _format_meeting_info(self, info: dict) -> str:
         date_str = info.get("date", "")
@@ -293,72 +325,104 @@ class CardGenerator:
         mtype = info.get("type", "")
         return f"{date_str} {committee} {mtype}".strip()
 
+    def _format_chunk_utterances(self, utterances: list[dict],
+                                  max_chars: int = 15000) -> str:
+        """청크 내 발언을 LLM 입력용 텍스트로 포맷.
+        max_chars 초과 시 발언을 앞뒤에서 균등하게 잘라냄.
+        """
+        lines = []
+        total_chars = 0
+
+        for utt in utterances:
+            label = utt["speaker"]
+            if utt["party"]:
+                label += f"({utt['party']})"
+            if utt["role"]:
+                label += f"[{utt['role']}]"
+
+            text = utt["text"]
+            entry = f"--- {label} ---\n{text}\n"
+
+            if total_chars + len(entry) > max_chars:
+                # 잘림 표시
+                remaining = max_chars - total_chars - 100
+                if remaining > 200:
+                    lines.append(f"--- {label} ---")
+                    lines.append(text[:remaining] + "\n[이하 생략]")
+                else:
+                    lines.append(f"[이하 {len(utterances) - len(lines)//3}건 생략]")
+                break
+
+            lines.append(entry)
+            total_chars += len(entry)
+
+        return "\n".join(lines)
+
     # ── 메인 파이프라인 ──
 
     def generate_cards(self, meeting_id: str) -> list[dict]:
         """회의록 1건 → 꼭지 카드 리스트"""
         conn = sqlite3.connect(str(DB_PATH))
         try:
-            # 1. 데이터 수집
             info = self._get_meeting_info(meeting_id, conn)
             if not info:
                 logger.error(f"회의 없음: {meeting_id}")
                 return []
 
-            clauses = self._get_clauses(meeting_id, conn)
-            if len(clauses) < 3:
-                logger.info(f"발언 부족 ({len(clauses)}건): {meeting_id}")
+            utterances = self._get_utterances(meeting_id, conn)
+            if len(utterances) < 3:
+                logger.info(f"발언 부족 ({len(utterances)}건): {meeting_id}")
                 return []
 
             meeting_info_str = self._format_meeting_info(info)
+
+            # 청크 분리
+            chunks = self._split_into_chunks(utterances)
             self.notify_fn(
-                f"📄 {meeting_info_str} — {len(clauses)}건 발언"
+                f"📄 {meeting_info_str} — "
+                f"{len(utterances)}건 발언 → {len(chunks)}개 청크"
             )
 
-            # 2. 1단계: 이슈 분류
-            clause_list_text = self._format_clause_list(clauses)
-            prompt1 = STAGE1_PROMPT.format(
-                meeting_info=meeting_info_str,
-                clause_list=clause_list_text,
-            )
-            resp1 = self._call_llm(prompt1, max_tokens=1024)
-            classification = self._parse_json(resp1)
+            if not chunks:
+                # 경계를 못 찾으면 전체를 하나의 청크로
+                substantive = [u for u in utterances
+                               if not self._is_skippable(u)]
+                if substantive:
+                    chunks = [{"title": "(전체)", "utterances": substantive}]
 
-            if not classification or "issues" not in classification:
-                logger.error(f"1단계 분류 실패: {meeting_id}")
-                return []
-
-            issues = classification["issues"]
-            self.notify_fn(f"  → {len(issues)}개 이슈 분류됨")
-
-            # 3. 2단계: 이슈별 카드 생성
+            # 각 청크 → 카드
             cards = []
-            for issue in issues:
-                clause_ids = issue.get("clause_ids", [])
-                if len(clause_ids) < 2:
+            for i, chunk in enumerate(chunks, 1):
+                utts = chunk["utterances"]
+                if len(utts) < 2:
+                    continue  # 발언 2건 미만은 건너뜀
+
+                utt_text = self._format_chunk_utterances(utts)
+                prompt = CARD_PROMPT.format(
+                    meeting_info=meeting_info_str,
+                    chunk_title=chunk["title"],
+                    utterances_text=utt_text,
+                )
+                resp = self._call_llm(prompt, max_tokens=2048)
+                card = self._parse_json(resp)
+
+                if not card:
+                    continue
+                if card.get("skip"):
+                    self.notify_fn(f"  ⏭ 청크 {i}: {chunk['title'][:30]} (건너뜀)")
+                    continue
+                if "title" not in card:
                     continue
 
-                clauses_text = self._format_clauses_for_issue(clauses, clause_ids)
-                prompt2 = STAGE2_PROMPT.format(
-                    meeting_info=meeting_info_str,
-                    issue_title=issue.get("title", ""),
-                    issue_oneline=issue.get("one_line", ""),
-                    clauses_text=clauses_text,
-                )
-                resp2 = self._call_llm(prompt2, max_tokens=2048)
-                card = self._parse_json(resp2)
-
-                if card and "title" in card:
-                    # 메타데이터 추가
-                    card["meeting_id"] = meeting_id
-                    card["meeting_date"] = info.get("date", "")
-                    card["committee"] = info.get("committee", "")
-                    card["source_clause_ids"] = [
-                        c["clause_id"] for c in clauses
-                        if c["id"] in clause_ids
-                    ]
-                    cards.append(card)
-                    self.notify_fn(f"  ✅ {card['title'][:40]}...")
+                # 메타데이터 추가
+                card["meeting_id"] = meeting_id
+                card["meeting_date"] = info.get("date", "")
+                card["committee"] = info.get("committee", "")
+                card["chunk_title"] = chunk["title"]
+                card["utterance_ids"] = [u["utterance_id"] for u in utts]
+                card["utterance_count"] = len(utts)
+                cards.append(card)
+                self.notify_fn(f"  ✅ 청크 {i}: {card['title'][:50]}")
 
                 time.sleep(0.5)  # rate limit
 
@@ -369,33 +433,33 @@ class CardGenerator:
 
     def generate_batch(self, meeting_ids: list[str] = None,
                        limit: int = 0) -> dict:
-        """여러 회의록을 배치 처리.
-        meeting_ids 없으면 아직 카드가 없는 회의를 자동 선택.
-        """
+        """여러 회의록을 배치 처리."""
         conn = sqlite3.connect(str(DB_PATH))
         self._ensure_table(conn)
 
         if not meeting_ids:
-            # 아직 카드가 없는 회의 중 clause가 있는 것
             rows = conn.execute("""
-                SELECT DISTINCT u.meeting_id
-                FROM utterance u
-                JOIN clause c ON u.utterance_id = c.utterance_id
-                WHERE c.char_count >= 100
-                  AND u.meeting_id NOT IN (
+                SELECT DISTINCT m.meeting_id
+                FROM meeting m
+                JOIN utterance u ON m.meeting_id = u.meeting_id
+                WHERE u.is_procedural = 0
+                  AND u.char_count >= 50
+                  AND m.meeting_id NOT IN (
                       SELECT DISTINCT meeting_id FROM card
                   )
-                ORDER BY u.meeting_id
+                GROUP BY m.meeting_id
+                HAVING COUNT(*) >= 5
+                ORDER BY m.meeting_date DESC
             """).fetchall()
             meeting_ids = [r[0] for r in rows]
 
         if limit:
             meeting_ids = meeting_ids[:limit]
-
         conn.close()
 
-        stats = {"meetings": 0, "cards": 0, "errors": 0}
+        stats = {"meetings": 0, "cards": 0, "errors": 0, "skipped": 0}
         total = len(meeting_ids)
+        self.notify_fn(f"📊 배치 시작: {total}개 회의")
 
         for i, mid in enumerate(meeting_ids, 1):
             try:
@@ -404,10 +468,12 @@ class CardGenerator:
                     self._save_cards(cards)
                     stats["meetings"] += 1
                     stats["cards"] += len(cards)
-                if i % 10 == 0:
+                else:
+                    stats["skipped"] += 1
+                if i % 10 == 0 or i == total:
                     self.notify_fn(
-                        f"📊 진행: {i}/{total} "
-                        f"({stats['cards']}개 카드)"
+                        f"📊 진행: {i}/{total} — "
+                        f"{stats['cards']}개 카드, {stats['errors']}개 오류"
                     )
             except Exception as e:
                 stats["errors"] += 1
@@ -424,13 +490,15 @@ class CardGenerator:
                 meeting_id TEXT,
                 meeting_date TEXT,
                 committee TEXT,
+                chunk_title TEXT,
                 title TEXT,
                 summary TEXT,
-                comments TEXT,    -- JSON array
-                keywords TEXT,    -- JSON array
-                persons TEXT,     -- JSON array
-                orgs TEXT,        -- JSON array
-                source_clause_ids TEXT,  -- JSON array
+                comments TEXT,         -- JSON array
+                keywords TEXT,         -- JSON array
+                persons TEXT,          -- JSON array
+                orgs TEXT,             -- JSON array
+                utterance_ids TEXT,    -- JSON array
+                utterance_count INTEGER,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP
             )
         """)
@@ -452,22 +520,23 @@ class CardGenerator:
             conn.execute("""
                 INSERT OR REPLACE INTO card
                 (card_id, meeting_id, meeting_date, committee,
-                 title, summary, comments, keywords,
-                 persons, orgs, source_clause_ids)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 chunk_title, title, summary, comments, keywords,
+                 persons, orgs, utterance_ids, utterance_count)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 card_id,
                 card.get("meeting_id", ""),
                 card.get("meeting_date", ""),
                 card.get("committee", ""),
+                card.get("chunk_title", ""),
                 card.get("title", ""),
                 card.get("summary", ""),
                 json.dumps(card.get("comments", []), ensure_ascii=False),
                 json.dumps(card.get("keywords", []), ensure_ascii=False),
                 json.dumps(card.get("persons", []), ensure_ascii=False),
                 json.dumps(card.get("orgs", []), ensure_ascii=False),
-                json.dumps(card.get("source_clause_ids", []),
-                           ensure_ascii=False),
+                json.dumps(card.get("utterance_ids", []), ensure_ascii=False),
+                card.get("utterance_count", 0),
             ))
         conn.commit()
         conn.close()
@@ -481,7 +550,6 @@ class CardGenerator:
 # ═══════════════════════════════════════
 
 if __name__ == "__main__":
-    import sys
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s [%(levelname)s] %(message)s")
 
@@ -489,17 +557,19 @@ if __name__ == "__main__":
 
     if len(sys.argv) > 1:
         mid = sys.argv[1]
+        print(f"\n지정 회의: {mid}\n")
         cards = gen.generate_cards(mid)
     else:
-        # 기본: 1건만 테스트
+        # 랜덤 회의 1건 테스트
         conn = sqlite3.connect(str(DB_PATH))
         row = conn.execute("""
-            SELECT u.meeting_id, COUNT(*) as cnt
-            FROM utterance u
-            JOIN clause c ON u.utterance_id = c.utterance_id
-            WHERE c.char_count >= 100
-            GROUP BY u.meeting_id
-            HAVING cnt >= 10
+            SELECT m.meeting_id, m.meeting_date, m.committee_id,
+                   COUNT(*) as utt_count
+            FROM meeting m
+            JOIN utterance u ON m.meeting_id = u.meeting_id
+            WHERE u.is_procedural = 0 AND u.char_count >= 50
+            GROUP BY m.meeting_id
+            HAVING utt_count >= 10
             ORDER BY RANDOM()
             LIMIT 1
         """).fetchone()
@@ -507,7 +577,8 @@ if __name__ == "__main__":
 
         if row:
             mid = row[0]
-            print(f"\n랜덤 회의 선택: {mid} ({row[1]}건 발언)\n")
+            print(f"\n랜덤 회의: {mid} ({row[1]} {row[2]}, "
+                  f"{row[3]}건 실질 발언)\n")
             cards = gen.generate_cards(mid)
         else:
             print("적합한 회의가 없습니다")
@@ -532,10 +603,11 @@ if __name__ == "__main__":
                     label += f" {role}"
                 label += ")"
             elif role:
-                label += f"({role})"
+                label += f"[{role}]"
             print(f"  - {label}: \"{c['text']}\"")
         print(f"키워드: {', '.join(card.get('keywords', []))}")
         print(f"인물: {', '.join(card.get('persons', []))}")
         print(f"기관: {', '.join(card.get('orgs', []))}")
         print(f"회의: {card.get('committee', '')} {card.get('meeting_date', '')}")
+        print(f"발언: {card.get('utterance_count', 0)}건")
         print()
