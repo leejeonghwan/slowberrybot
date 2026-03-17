@@ -73,9 +73,9 @@ CARD_PROMPT = """아래는 국회 회의록 한 안건에 대한 발언 묶음�
   {{
     "title": "쟁점 핵심 + 날짜·회의명",
     "summary": "상황 재구성 3~5문장",
-    "comments": [
-      {{"speaker": "화자명", "party": "소속", "role": "직위", "quote": "원문에서 발췌한 핵심 발언 2~4문장"}},
-      {{"speaker": "화자명", "party": "소속", "role": "직위", "quote": "원문에서 발췌한 핵심 발언 2~4문장"}}
+    "quotes": [
+      {{"speaker": "화자명", "party": "소속", "role": "직위", "quote": "원문 발췌 2~4문장"}},
+      {{"speaker": "화자명", "party": "소속", "role": "직위", "quote": "원문 발췌 2~4문장"}}
     ],
     "keywords": ["키워드1", "키워드2"],
     "persons": ["인물1", "인물2"],
@@ -92,7 +92,7 @@ summary 규칙:
 - 단순 나열이 아니라 상황 재구성. "누가 뭘 했고 → 상대가 어떻게 반박했고 → 결과가 어떻게 됐다" 흐름을 서술
 - 3~5문장. 이 요약만 읽어도 무슨 일이 있었는지 이해할 수 있어야 함
 
-코멘트 규칙:
+quotes 규칙:
 - quote: 원문에서 핵심이 되는 2~4문장을 발췌. 반드시 주어·목적어를 포함하여
   quote만 읽어도 무슨 말인지 이해할 수 있어야 함.
   나쁜 예: "그거 안 됩니다" (뭐가? 왜?)
@@ -100,13 +100,13 @@ summary 규칙:
   반드시 발언 원문에 실제로 있는 표현이어야 함. 프롬프트의 예시를 베끼지 말 것.
   원문 표현을 최대한 살리되, 불필요한 반복·추임새·호칭은 제거.
   문장이 길면 "…"으로 중략 가능.
-- 같은 사람이 여러 논점을 말했으면 별도 코멘트로 분리
+- 같은 사람이 여러 논점을 말했으면 별도 quote로 분리
 - 카드당 최소 3개, 평균 7~8개, 최대 20개
 - 찬성·반대·정부 측 등 다양한 입장이 골고루 포함되도록
 - 더불어민주당은 "민주당"으로 표기
 
 인물/기관 규칙:
-- persons: 코멘트에 등장하는 화자 + 발언에서 언급된 주요 인물
+- persons: quotes에 등장하는 화자 + 발언에서 언급된 주요 인물
 - orgs: 발언에서 언급된 주요 기관·조직명
 - 날짜는 "2025년 9월 25일" 형식으로 표기"""
 
@@ -615,7 +615,7 @@ class CardGenerator:
                 chunk_title TEXT,
                 title TEXT,
                 summary TEXT,
-                comments TEXT,         -- JSON array
+                quotes TEXT,           -- JSON array
                 keywords TEXT,         -- JSON array
                 persons TEXT,          -- JSON array
                 orgs TEXT,             -- JSON array
@@ -642,7 +642,7 @@ class CardGenerator:
             conn.execute("""
                 INSERT OR REPLACE INTO card
                 (card_id, meeting_id, meeting_date, committee,
-                 chunk_title, title, summary, comments, keywords,
+                 chunk_title, title, summary, quotes, keywords,
                  persons, orgs, utterance_ids, utterance_count)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
@@ -653,7 +653,7 @@ class CardGenerator:
                 card.get("chunk_title", ""),
                 card.get("title", ""),
                 card.get("summary", ""),
-                json.dumps(card.get("comments", []), ensure_ascii=False),
+                json.dumps(card.get("quotes", card.get("comments", [])), ensure_ascii=False),
                 json.dumps(card.get("keywords", []), ensure_ascii=False),
                 json.dumps(card.get("persons", []), ensure_ascii=False),
                 json.dumps(card.get("orgs", []), ensure_ascii=False),
@@ -722,8 +722,8 @@ if __name__ == "__main__":
     for card in cards:
         print(f"제목: {card.get('title', '')}")
         print(f"핵심: {card.get('summary', '')}")
-        print(f"코멘트:")
-        for c in card.get("comments", []):
+        print(f"발언:")
+        for c in card.get("quotes", card.get("comments", [])):
             party = c.get("party", "")
             role = c.get("role", "")
             label = c["speaker"]
