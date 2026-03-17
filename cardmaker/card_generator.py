@@ -265,6 +265,29 @@ class CardGenerator:
             "type": row[3] or "",
         }
 
+    def _build_party_lookup(self, conn: sqlite3.Connection) -> dict[str, str]:
+        """member 테이블에서 이름→정당 매핑 구축 (캐시)"""
+        if hasattr(self, "_party_cache"):
+            return self._party_cache
+        try:
+            rows = conn.execute("""
+                SELECT name, party FROM member
+                WHERE name IS NOT NULL AND name != ''
+                  AND party IS NOT NULL AND party != ''
+            """).fetchall()
+            self._party_cache = {name.strip(): party.strip() for name, party in rows}
+        except Exception:
+            self._party_cache = {}
+        return self._party_cache
+
+    def _normalize_party(self, party: str) -> str:
+        """정당명 정규화"""
+        if not party:
+            return ""
+        party = party.strip()
+        party = party.replace("더불어민주당", "민주당")
+        return party
+
     def _get_utterances(self, meeting_id: str,
                         conn: sqlite3.Connection) -> list[dict]:
         """회의록의 모든 utterance를 순서대로 가져오기"""
@@ -276,14 +299,21 @@ class CardGenerator:
             ORDER BY sequence_no
         """, (meeting_id,)).fetchall()
 
+        # member 테이블에서 정당 룩업 (speaker_party가 NULL일 때 fallback)
+        party_lookup = self._build_party_lookup(conn)
+
         utts = []
         for uid, seq, name, role, party, text, chars, is_proc in rows:
+            # party가 없으면 member 테이블에서 조회
+            if not party and name:
+                party = party_lookup.get(name.strip(), "")
+
             utts.append({
                 "utterance_id": uid,
                 "seq": seq,
                 "speaker": name or "?",
                 "role": role or "",
-                "party": (party or "").replace("더불어민주당", "민주당"),
+                "party": self._normalize_party(party),
                 "text": text or "",
                 "char_count": chars or 0,
                 "is_procedural": bool(is_proc),
