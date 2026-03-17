@@ -93,6 +93,8 @@ summary 규칙:
 - 3~5문장. 이 요약만 읽어도 무슨 일이 있었는지 이해할 수 있어야 함
 
 quotes 규칙:
+- speaker/party/role: 반드시 발언 데이터의 "--- 화자명(소속)[직위] ---" 표기를 그대로 사용.
+  LLM이 자체 지식으로 정당을 추측하지 말 것. 데이터에 없으면 빈 문자열로 둘 것.
 - quote: 원문에서 핵심이 되는 2~4문장을 발췌. 반드시 주어·목적어를 포함하여
   quote만 읽어도 무슨 말인지 이해할 수 있어야 함.
   나쁜 예: "그거 안 됩니다" (뭐가? 왜?)
@@ -227,9 +229,38 @@ class CardGenerator:
         """, (meeting_id,)).fetchone()
         if not row:
             return {}
+
+        committee_id = row[1] or ""
+        committee_name = committee_id  # 기본값
+
+        # committee_id가 코드값이면 별도 테이블에서 이름 조회 시도
+        if committee_id:
+            # 1) committee 테이블이 있으면 조회
+            try:
+                cname = conn.execute("""
+                    SELECT committee_name FROM committee
+                    WHERE committee_id = ?
+                """, (committee_id,)).fetchone()
+                if cname and cname[0]:
+                    committee_name = cname[0]
+            except Exception:
+                pass
+
+            # 2) meeting 테이블에 committee_name 컬럼이 있으면 사용
+            if committee_name == committee_id:
+                try:
+                    cname = conn.execute("""
+                        SELECT committee_name FROM meeting
+                        WHERE meeting_id = ?
+                    """, (meeting_id,)).fetchone()
+                    if cname and cname[0]:
+                        committee_name = cname[0]
+                except Exception:
+                    pass
+
         return {
             "meeting_id": row[0],
-            "committee": row[1] or "",
+            "committee": committee_name,
             "date": row[2] or "",
             "type": row[3] or "",
         }
