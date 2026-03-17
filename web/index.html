@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>국회 꼭지카드</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, 'Pretendard', 'Noto Sans KR', sans-serif;
+  background: #f5f5f5; color: #222; line-height: 1.6;
+}
+.container { max-width: 780px; margin: 0 auto; padding: 16px; }
+
+/* 헤더 */
+header { padding: 24px 0 16px; }
+header h1 { font-size: 22px; font-weight: 700; color: #111; }
+header p { font-size: 13px; color: #888; margin-top: 4px; }
+
+/* 검색/필터 */
+.search-bar {
+  position: sticky; top: 0; z-index: 10;
+  background: #f5f5f5; padding: 12px 0;
+}
+.search-bar input {
+  width: 100%; padding: 10px 14px; font-size: 15px;
+  border: 1px solid #ddd; border-radius: 8px; outline: none;
+  background: #fff;
+}
+.search-bar input:focus { border-color: #4a7aff; }
+
+/* 필터 태그 */
+.filter-tags { margin: 8px 0 16px; display: flex; flex-wrap: wrap; gap: 6px; }
+.filter-tag {
+  display: inline-block; padding: 4px 10px; font-size: 12px;
+  background: #e8edf3; color: #445; border-radius: 12px;
+  cursor: pointer; transition: all 0.15s;
+}
+.filter-tag:hover { background: #d0d8e8; }
+.filter-tag.active { background: #4a7aff; color: #fff; }
+
+/* 날짜 그룹 */
+.date-group { margin-bottom: 8px; }
+.date-label {
+  font-size: 13px; font-weight: 600; color: #888;
+  padding: 16px 0 6px; border-bottom: 1px solid #e0e0e0;
+  margin-bottom: 8px;
+}
+
+/* 카드 */
+.card {
+  background: #fff; border-radius: 10px; padding: 18px 20px;
+  margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  cursor: pointer; transition: box-shadow 0.15s;
+}
+.card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+.card-title {
+  font-size: 16px; font-weight: 700; color: #111;
+  line-height: 1.4; margin-bottom: 8px;
+}
+.card-summary {
+  font-size: 14px; color: #444; line-height: 1.65;
+}
+.card-meta {
+  margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px;
+}
+.card-meta .tag {
+  font-size: 11px; padding: 2px 8px; background: #f0f2f5;
+  border-radius: 10px; color: #556;
+}
+.card-meta .tag.person { background: #e8f4e8; color: #2a6a2a; }
+.card-meta .tag.org { background: #fef3e0; color: #8a6514; }
+
+/* 인용 펼침 */
+.quotes-section {
+  max-height: 0; overflow: hidden; transition: max-height 0.3s ease;
+}
+.card.expanded .quotes-section { max-height: 5000px; }
+.quotes-divider {
+  margin: 14px 0 12px; border-top: 1px solid #eee;
+  font-size: 12px; color: #999; padding-top: 10px;
+}
+.quote-item { margin-bottom: 12px; }
+.quote-speaker {
+  font-size: 12px; font-weight: 600; color: #4a7aff; margin-bottom: 2px;
+}
+.quote-text {
+  font-size: 14px; color: #333; line-height: 1.6;
+  padding-left: 12px; border-left: 2px solid #e0e4ea;
+}
+
+/* 하단 통계 */
+.stats {
+  text-align: center; padding: 24px 0; font-size: 13px; color: #aaa;
+}
+
+/* 빈 결과 */
+.empty {
+  text-align: center; padding: 60px 0; color: #aaa; font-size: 15px;
+}
+
+/* 토글 힌트 */
+.toggle-hint {
+  font-size: 12px; color: #aaa; margin-top: 6px;
+}
+.card.expanded .toggle-hint { display: none; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>국회 꼭지카드</h1>
+    <p id="subtitle">로딩 중…</p>
+  </header>
+
+  <div class="search-bar">
+    <input type="text" id="search" placeholder="검색: 제목, 인물, 기관, 키워드…">
+  </div>
+
+  <div class="filter-tags" id="filters"></div>
+  <div id="cards"></div>
+  <div class="stats" id="stats"></div>
+</div>
+
+<script>
+let ALL_CARDS = [];
+let activeFilter = null;
+
+async function loadCards() {
+  try {
+    const resp = await fetch('cards.json');
+    ALL_CARDS = await resp.json();
+    document.getElementById('subtitle').textContent =
+      `${ALL_CARDS.length}개 카드 · ${new Set(ALL_CARDS.map(c => c.meeting_id)).size}개 회의`;
+    buildFilters();
+    renderCards(ALL_CARDS);
+  } catch (e) {
+    document.getElementById('cards').innerHTML =
+      '<div class="empty">cards.json을 불러올 수 없습니다.<br>cardmaker/export_cards.py를 실행해주세요.</div>';
+  }
+}
+
+function buildFilters() {
+  // 인물·기관·키워드 빈도 수집
+  const freq = {};
+  ALL_CARDS.forEach(c => {
+    (c.persons || []).forEach(p => {
+      freq[`person:${p}`] = (freq[`person:${p}`] || 0) + 1;
+    });
+    (c.orgs || []).forEach(o => {
+      freq[`org:${o}`] = (freq[`org:${o}`] || 0) + 1;
+    });
+    (c.keywords || []).forEach(k => {
+      freq[`kw:${k}`] = (freq[`kw:${k}`] || 0) + 1;
+    });
+  });
+
+  // 상위 20개 태그
+  const top = Object.entries(freq)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 20);
+
+  const container = document.getElementById('filters');
+  top.forEach(([tag, count]) => {
+    const [type, name] = [tag.split(':')[0], tag.split(':').slice(1).join(':')];
+    const el = document.createElement('span');
+    el.className = 'filter-tag';
+    el.textContent = `${name} (${count})`;
+    el.dataset.type = type;
+    el.dataset.name = name;
+    el.onclick = () => toggleFilter(el, type, name);
+    container.appendChild(el);
+  });
+}
+
+function toggleFilter(el, type, name) {
+  if (activeFilter === `${type}:${name}`) {
+    activeFilter = null;
+    el.classList.remove('active');
+  } else {
+    document.querySelectorAll('.filter-tag').forEach(t => t.classList.remove('active'));
+    activeFilter = `${type}:${name}`;
+    el.classList.add('active');
+  }
+  applyFilters();
+}
+
+function applyFilters() {
+  const query = document.getElementById('search').value.trim().toLowerCase();
+  let filtered = ALL_CARDS;
+
+  if (activeFilter) {
+    const [type, name] = [activeFilter.split(':')[0], activeFilter.split(':').slice(1).join(':')];
+    filtered = filtered.filter(c => {
+      if (type === 'person') return (c.persons || []).includes(name);
+      if (type === 'org') return (c.orgs || []).includes(name);
+      if (type === 'kw') return (c.keywords || []).includes(name);
+      return true;
+    });
+  }
+
+  if (query) {
+    filtered = filtered.filter(c => {
+      const text = [
+        c.title, c.summary,
+        ...(c.persons || []), ...(c.orgs || []), ...(c.keywords || []),
+        ...(c.quotes || []).map(q => q.speaker + ' ' + q.quote)
+      ].join(' ').toLowerCase();
+      return text.includes(query);
+    });
+  }
+
+  renderCards(filtered);
+}
+
+function renderCards(cards) {
+  const container = document.getElementById('cards');
+
+  if (!cards.length) {
+    container.innerHTML = '<div class="empty">검색 결과가 없습니다</div>';
+    document.getElementById('stats').textContent = '';
+    return;
+  }
+
+  // 날짜별 그룹
+  const groups = {};
+  cards.forEach(c => {
+    const date = c.meeting_date || '날짜 미상';
+    if (!groups[date]) groups[date] = [];
+    groups[date].push(c);
+  });
+
+  let html = '';
+  const dates = Object.keys(groups).sort().reverse();
+
+  dates.forEach(date => {
+    // 날짜 포맷
+    let dateLabel = date;
+    try {
+      const [y, m, d] = date.split('-');
+      dateLabel = `${y}년 ${parseInt(m)}월 ${parseInt(d)}일`;
+    } catch {}
+
+    const meetingIds = [...new Set(groups[date].map(c => c.committee || c.meeting_id))];
+    html += `<div class="date-group">`;
+    html += `<div class="date-label">${dateLabel} · ${meetingIds.join(', ')}</div>`;
+
+    groups[date].forEach(card => {
+      const quotes = card.quotes || [];
+      const persons = (card.persons || []).slice(0, 5);
+      const orgs = (card.orgs || []).slice(0, 3);
+      const keywords = (card.keywords || []).slice(0, 4);
+
+      html += `<div class="card" onclick="this.classList.toggle('expanded')">`;
+      html += `<div class="card-title">${esc(card.title)}</div>`;
+      html += `<div class="card-summary">${esc(card.summary)}</div>`;
+
+      // 메타 태그
+      html += `<div class="card-meta">`;
+      persons.forEach(p => { html += `<span class="tag person">${esc(p)}</span>`; });
+      orgs.forEach(o => { html += `<span class="tag org">${esc(o)}</span>`; });
+      keywords.forEach(k => { html += `<span class="tag">${esc(k)}</span>`; });
+      html += `</div>`;
+
+      if (quotes.length) {
+        html += `<div class="toggle-hint">▼ 발언 ${quotes.length}건</div>`;
+        html += `<div class="quotes-section">`;
+        html += `<div class="quotes-divider">발언 ${quotes.length}건</div>`;
+        quotes.forEach(q => {
+          let label = q.speaker || '?';
+          if (q.party) label += `(${q.party})`;
+          html += `<div class="quote-item">`;
+          html += `<div class="quote-speaker">${esc(label)}</div>`;
+          html += `<div class="quote-text">${esc(q.quote || '')}</div>`;
+          html += `</div>`;
+        });
+        html += `</div>`;
+      }
+
+      html += `</div>`;
+    });
+
+    html += `</div>`;
+  });
+
+  container.innerHTML = html;
+  document.getElementById('stats').textContent =
+    `${cards.length}개 카드 · ${dates.length}개 날짜`;
+}
+
+function esc(s) {
+  if (!s) return '';
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// 이벤트
+document.getElementById('search').addEventListener('input', applyFilters);
+loadCards();
+</script>
+</body>
+</html>
