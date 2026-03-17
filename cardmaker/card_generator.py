@@ -88,6 +88,13 @@ CARD_PROMPT = """아래는 국회 회의록 한 안건에 대한 발언 묶음�
 - 서로 다른 주제는 별도 쟁점으로 분리
 - 판단이 어려우면 합치기보다 분리하는 쪽으로
 
+신분 표기 규칙:
+- 위원회 회의에서 위원/위원장/간사 등 국회의원은 모두 "의원"으로 통일.
+  예: 위원→의원, 위원장→의원, 간사→의원. 단 정부 측(장관/차관/국장 등)은 그대로.
+- summary에서 인물을 처음 언급할 때 반드시 "이름(정당 신분)" 형태로 표기.
+  예: "장경태(국민의힘 의원)는", "박은정(조국혁신당 의원)은", "한동훈(법무부 장관)은"
+- quotes의 speaker/party/role도 같은 규칙 적용.
+
 summary 규칙:
 - 단순 나열이 아니라 상황 재구성. "누가 뭘 했고 → 상대가 어떻게 반박했고 → 결과가 어떻게 됐다" 흐름을 서술
 - 3~5문장. 이 요약만 읽어도 무슨 일이 있었는지 이해할 수 있어야 함
@@ -95,6 +102,7 @@ summary 규칙:
 quotes 규칙:
 - speaker/party/role: 반드시 발언 데이터의 "--- 화자명(소속)[직위] ---" 표기를 그대로 사용.
   LLM이 자체 지식으로 정당을 추측하지 말 것. 데이터에 없으면 빈 문자열로 둘 것.
+  role은 위원/위원장/간사 → "의원"으로 통일. 정부 측은 원래 직위 그대로.
 - quote: 원문에서 핵심이 되는 2~4문장을 발췌. 반드시 주어·목적어를 포함하여
   quote만 읽어도 무슨 말인지 이해할 수 있어야 함.
   나쁜 예: "그거 안 됩니다" (뭐가? 왜?)
@@ -502,12 +510,21 @@ class CardGenerator:
         lines = []
         total_chars = 0
 
+        # 의원 역할 통일 (위원/위원장/간사 → 의원)
+        member_roles = {"위원", "위원장", "간사"}
+
         for utt in utterances:
+            role = utt["role"]
+            if role in member_roles:
+                role = "의원"
+
             label = utt["speaker"]
-            if utt["party"]:
+            if utt["party"] and role:
+                label += f"({utt['party']} {role})"
+            elif utt["party"]:
                 label += f"({utt['party']})"
-            if utt["role"]:
-                label += f"[{utt['role']}]"
+            elif role:
+                label += f"({role})"
 
             text = utt["text"]
             entry = f"--- {label} ---\n{text}\n"
