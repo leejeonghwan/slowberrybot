@@ -100,9 +100,12 @@ summary 규칙:
 - 3~5문장. 이 요약만 읽어도 무슨 일이 있었는지 이해할 수 있어야 함
 
 quotes 규칙:
-- speaker/party/role: 반드시 발언 데이터의 "--- 화자명(소속)[직위] ---" 표기를 그대로 사용.
-  LLM이 자체 지식으로 정당을 추측하지 말 것. 데이터에 없으면 빈 문자열로 둘 것.
-  role은 위원/위원장/간사 → "의원"으로 통일. 정부 측은 원래 직위 그대로.
+- speaker: 반드시 이름만. 괄호·소속·직위를 절대 포함하지 말 것.
+  좋은 예: "서영교"  나쁜 예: "서영교(민주당)", "서영교(민주당 의원)"
+- party: 발언 헤더의 소속(| 구분자 뒤 두 번째 필드)을 그대로 사용. 없으면 빈 문자열.
+  LLM이 자체 지식으로 정당을 추측하지 말 것.
+- role: 발언 헤더의 직위(| 구분자 뒤 세 번째 필드)를 그대로 사용. 없으면 빈 문자열.
+  위원/위원장/간사 → "의원"으로 통일. 정부 측은 직함만 간결하게(장관/차관/국장 등).
 - quote: 원문에서 핵심이 되는 2~4문장을 발췌. 반드시 주어·목적어를 포함하여
   quote만 읽어도 무슨 말인지 이해할 수 있어야 함.
   나쁜 예: "그거 안 됩니다" (뭐가? 왜?)
@@ -518,13 +521,13 @@ class CardGenerator:
             if role in member_roles:
                 role = "의원"
 
-            label = utt["speaker"]
-            if utt["party"] and role:
-                label += f"({utt['party']} {role})"
-            elif utt["party"]:
-                label += f"({utt['party']})"
-            elif role:
-                label += f"({role})"
+            # 이름 | 소속 | 직위 형태로 명확히 분리
+            parts = [utt["speaker"]]
+            if utt["party"]:
+                parts.append(utt["party"])
+            if role:
+                parts.append(role)
+            label = " | ".join(parts)
 
             text = utt["text"]
             entry = f"--- {label} ---\n{text}\n"
@@ -543,6 +546,49 @@ class CardGenerator:
             total_chars += len(entry)
 
         return "\n".join(lines)
+
+    # ── 후처리 ──
+
+    def _postprocess_quotes(self, quotes: list[dict]) -> list[dict]:
+        """LLM이 반환한 quotes에서 speaker/role 정리.
+        - speaker에 괄호가 섞여 있으면 이름만 추출
+        - role에 기관명이 붙어 있으면 직함만 추출
+        """
+        ROLE_SUFFIXES = ["장관", "차관", "국장", "과장", "실장", "청장",
+                         "처장", "위원장", "총장", "감사", "이사장", "원장",
+                         "총리", "대통령", "비서관", "수석", "대변인"]
+
+        for q in quotes:
+            if not isinstance(q, dict):
+                continue
+
+            # 1) speaker에서 괄호 제거: "서영교(민주당)" → "서영교"
+            speaker = q.get("speaker", "")
+            if "(" in speaker:
+                speaker = speaker.split("(")[0].strip()
+                q["speaker"] = speaker
+
+            # 2) role 정규화: "과학기술정보통신부제2차관" → "차관"
+            role = q.get("role", "")
+            if role:
+                # 제N 패턴 제거 후 직함 추출
+                for suffix in ROLE_SUFFIXES:
+                    if role.endswith(suffix):
+                        # "제1차관" → "차관", "제2차관" → "차관"
+                        idx = role.rfind(suffix)
+                        # 앞에 기관명이 붙어있으면 직함만 추출
+                        clean_role = role[idx:]
+                        # "제N" 접두사 제거
+                        clean_role = re.sub(r'^제\d+', '', clean_role)
+                        q["role"] = clean_role
+                        break
+
+            # 3) party 정규화
+            party = q.get("party", "")
+            if party:
+                q["party"] = self._normalize_party(party)
+
+        return quotes
 
     # ── 메인 파이프라인 ──
 
@@ -613,6 +659,11 @@ class CardGenerator:
                         continue
                     if "title" not in card:
                         continue
+
+                    # quotes 후처리 (speaker/role 정리)
+                    if "quotes" in card:
+                        card["quotes"] = self._postprocess_quotes(
+                            card["quotes"])
 
                     # 메타데이터 추가
                     card["meeting_id"] = meeting_id
