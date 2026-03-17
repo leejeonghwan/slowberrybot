@@ -3,113 +3,178 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>국회 꼭지카드</title>
+<title>슬로우 어셈블리</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
   font-family: -apple-system, 'Pretendard', 'Noto Sans KR', sans-serif;
-  background: #f5f5f5; color: #222; line-height: 1.6;
+  background: #fdad00; color: #222; line-height: 1.6;
+  min-height: 100vh;
 }
 .container { max-width: 780px; margin: 0 auto; padding: 16px; }
 
 /* 헤더 */
-header { padding: 24px 0 16px; }
-header h1 { font-size: 22px; font-weight: 700; color: #111; }
-header p { font-size: 13px; color: #888; margin-top: 4px; }
+header {
+  padding: 32px 0 20px;
+  text-align: center;
+}
+header h1 {
+  font-size: 26px; font-weight: 800; color: #1a1a1a;
+  letter-spacing: -0.5px;
+}
+header p {
+  font-size: 13px; color: rgba(0,0,0,0.5); margin-top: 6px;
+}
 
-/* 검색/필터 */
+/* 검색 */
 .search-bar {
   position: sticky; top: 0; z-index: 10;
-  background: #f5f5f5; padding: 12px 0;
+  background: #fdad00; padding: 10px 0 12px;
 }
 .search-bar input {
-  width: 100%; padding: 10px 14px; font-size: 15px;
-  border: 1px solid #ddd; border-radius: 8px; outline: none;
+  width: 100%; padding: 12px 16px; font-size: 15px;
+  border: none; border-radius: 12px; outline: none;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  transition: all 0.2s;
+}
+.search-bar input:focus {
   background: #fff;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.12);
 }
-.search-bar input:focus { border-color: #4a7aff; }
+.search-bar input::placeholder { color: #999; }
 
-/* 필터 태그 */
-.filter-tags { margin: 8px 0 16px; display: flex; flex-wrap: wrap; gap: 6px; }
-.filter-tag {
-  display: inline-block; padding: 4px 10px; font-size: 12px;
-  background: #e8edf3; color: #445; border-radius: 12px;
-  cursor: pointer; transition: all 0.15s;
+/* 필터 태그 영역 */
+.filter-section {
+  margin: 4px 0 16px;
 }
-.filter-tag:hover { background: #d0d8e8; }
-.filter-tag.active { background: #4a7aff; color: #fff; }
+.filter-row {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin-bottom: 6px;
+}
+.filter-tag {
+  display: inline-block; padding: 5px 12px; font-size: 12px;
+  font-weight: 500;
+  background: rgba(255,255,255,0.55);
+  color: #333; border-radius: 16px;
+  cursor: pointer; transition: all 0.15s;
+  border: 1px solid rgba(255,255,255,0.3);
+}
+.filter-tag:hover { background: rgba(255,255,255,0.8); }
+.filter-tag.active {
+  background: #1a1a1a; color: #fdad00;
+  border-color: #1a1a1a;
+  font-weight: 600;
+}
+/* 태그 타입별 스타일 */
+.filter-tag[data-type="meeting"] {
+  background: rgba(255,255,255,0.75);
+  font-weight: 600; color: #1a1a1a;
+}
+.filter-tag[data-type="meeting"].active {
+  background: #1a1a1a; color: #fdad00;
+}
 
 /* 날짜 그룹 */
 .date-group { margin-bottom: 8px; }
 .date-label {
-  font-size: 13px; font-weight: 600; color: #888;
-  padding: 16px 0 6px; border-bottom: 1px solid #e0e0e0;
-  margin-bottom: 8px;
+  font-size: 13px; font-weight: 700; color: rgba(0,0,0,0.45);
+  padding: 20px 0 8px;
+  letter-spacing: -0.3px;
 }
 
 /* 카드 */
 .card {
-  background: #fff; border-radius: 10px; padding: 18px 20px;
-  margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-  cursor: pointer; transition: box-shadow 0.15s;
+  background: #fff; border-radius: 14px; padding: 20px 22px;
+  margin-bottom: 10px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  cursor: pointer; transition: all 0.2s;
 }
-.card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+.card:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+  transform: translateY(-1px);
+}
 .card-title {
-  font-size: 16px; font-weight: 700; color: #111;
-  line-height: 1.4; margin-bottom: 8px;
+  font-size: 17px; font-weight: 700; color: #111;
+  line-height: 1.45; margin-bottom: 8px;
 }
 .card-summary {
-  font-size: 14px; color: #444; line-height: 1.65;
+  font-size: 14px; color: #444; line-height: 1.7;
 }
+
+/* 카드 내 태그 */
 .card-meta {
-  margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px;
+  margin-top: 12px; display: flex; flex-wrap: wrap; gap: 5px;
 }
 .card-meta .tag {
-  font-size: 11px; padding: 2px 8px; background: #f0f2f5;
-  border-radius: 10px; color: #556;
+  font-size: 11px; padding: 3px 9px;
+  border-radius: 10px; cursor: pointer;
+  transition: all 0.15s;
 }
-.card-meta .tag.person { background: #e8f4e8; color: #2a6a2a; }
-.card-meta .tag.org { background: #fef3e0; color: #8a6514; }
+.card-meta .tag:hover { opacity: 0.8; }
+.card-meta .tag.meeting-tag {
+  background: #fdad00; color: #1a1a1a; font-weight: 600;
+}
+.card-meta .tag.person { background: #e8f5e9; color: #2e7d32; }
+.card-meta .tag.org { background: #fff3e0; color: #e65100; }
+.card-meta .tag.keyword { background: #f3f4f6; color: #555; }
 
 /* 인용 펼침 */
 .quotes-section {
-  max-height: 0; overflow: hidden; transition: max-height 0.3s ease;
+  max-height: 0; overflow: hidden;
+  transition: max-height 0.35s ease;
 }
-.card.expanded .quotes-section { max-height: 5000px; }
+.card.expanded .quotes-section { max-height: 8000px; }
 .quotes-divider {
-  margin: 14px 0 12px; border-top: 1px solid #eee;
-  font-size: 12px; color: #999; padding-top: 10px;
+  margin: 16px 0 14px;
+  border-top: 1px solid #f0f0f0;
+  font-size: 12px; color: #999; padding-top: 12px;
+  font-weight: 500;
 }
-.quote-item { margin-bottom: 12px; }
+.quote-item { margin-bottom: 14px; }
 .quote-speaker {
-  font-size: 12px; font-weight: 600; color: #4a7aff; margin-bottom: 2px;
+  font-size: 12px; font-weight: 700; color: #e08600;
+  margin-bottom: 3px;
 }
 .quote-text {
-  font-size: 14px; color: #333; line-height: 1.6;
-  padding-left: 12px; border-left: 2px solid #e0e4ea;
-}
-
-/* 하단 통계 */
-.stats {
-  text-align: center; padding: 24px 0; font-size: 13px; color: #aaa;
-}
-
-/* 빈 결과 */
-.empty {
-  text-align: center; padding: 60px 0; color: #aaa; font-size: 15px;
+  font-size: 14px; color: #333; line-height: 1.65;
+  padding-left: 12px; border-left: 3px solid #fdad00;
 }
 
 /* 토글 힌트 */
 .toggle-hint {
-  font-size: 12px; color: #aaa; margin-top: 6px;
+  font-size: 12px; color: #bbb; margin-top: 8px;
+  transition: all 0.15s;
 }
+.card:hover .toggle-hint { color: #999; }
 .card.expanded .toggle-hint { display: none; }
+
+/* 하단 통계 */
+.stats {
+  text-align: center; padding: 28px 0; font-size: 13px;
+  color: rgba(0,0,0,0.35);
+}
+
+/* 빈 결과 */
+.empty {
+  text-align: center; padding: 60px 0;
+  color: rgba(0,0,0,0.35); font-size: 15px;
+}
+
+/* 반응형 */
+@media (max-width: 480px) {
+  .container { padding: 12px; }
+  header h1 { font-size: 22px; }
+  .card { padding: 16px 18px; border-radius: 12px; }
+  .card-title { font-size: 15px; }
+}
 </style>
 </head>
 <body>
 <div class="container">
   <header>
-    <h1>국회 꼭지카드</h1>
+    <h1>슬로우 어셈블리</h1>
     <p id="subtitle">로딩 중…</p>
   </header>
 
@@ -117,21 +182,22 @@ header p { font-size: 13px; color: #888; margin-top: 4px; }
     <input type="text" id="search" placeholder="검색: 제목, 인물, 기관, 키워드…">
   </div>
 
-  <div class="filter-tags" id="filters"></div>
+  <div class="filter-section" id="filters"></div>
   <div id="cards"></div>
   <div class="stats" id="stats"></div>
 </div>
 
 <script>
 let ALL_CARDS = [];
-let activeFilter = null;
+let activeFilters = new Set(); // 복수 필터 지원
 
 async function loadCards() {
   try {
     const resp = await fetch('cards.json');
     ALL_CARDS = await resp.json();
+    const meetings = new Set(ALL_CARDS.map(c => c.meeting_id));
     document.getElementById('subtitle').textContent =
-      `${ALL_CARDS.length}개 카드 · ${new Set(ALL_CARDS.map(c => c.meeting_id)).size}개 회의`;
+      `${ALL_CARDS.length}개 카드 · ${meetings.size}개 회의`;
     buildFilters();
     renderCards(ALL_CARDS);
   } catch (e) {
@@ -141,7 +207,46 @@ async function loadCards() {
 }
 
 function buildFilters() {
-  // 인물·기관·키워드 빈도 수집
+  const container = document.getElementById('filters');
+  container.innerHTML = '';
+
+  // 1) 날짜+회의 태그 (meeting 태그)
+  const meetingMap = {};
+  ALL_CARDS.forEach(c => {
+    const key = `${c.meeting_date}|${c.committee || c.meeting_id}`;
+    if (!meetingMap[key]) {
+      meetingMap[key] = { date: c.meeting_date, committee: c.committee || c.meeting_id, count: 0 };
+    }
+    meetingMap[key].count++;
+  });
+
+  const meetingTags = Object.values(meetingMap)
+    .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+  if (meetingTags.length > 0) {
+    const meetingRow = document.createElement('div');
+    meetingRow.className = 'filter-row';
+
+    meetingTags.forEach(mt => {
+      let dateLabel = mt.date || '날짜 미상';
+      try {
+        const [y, m, d] = mt.date.split('-');
+        dateLabel = `${y}년 ${parseInt(m)}월 ${parseInt(d)}일`;
+      } catch {}
+
+      const label = `${dateLabel} ${mt.committee} 회의`;
+      const el = document.createElement('span');
+      el.className = 'filter-tag';
+      el.textContent = `${label} (${mt.count})`;
+      el.dataset.type = 'meeting';
+      el.dataset.name = `${mt.date}|${mt.committee}`;
+      el.onclick = () => toggleFilter(el);
+      meetingRow.appendChild(el);
+    });
+    container.appendChild(meetingRow);
+  }
+
+  // 2) 인물·기관·키워드 빈도 수집
   const freq = {};
   ALL_CARDS.forEach(c => {
     (c.persons || []).forEach(p => {
@@ -155,31 +260,43 @@ function buildFilters() {
     });
   });
 
-  // 상위 20개 태그
   const top = Object.entries(freq)
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 20);
+    .slice(0, 24);
 
-  const container = document.getElementById('filters');
-  top.forEach(([tag, count]) => {
-    const [type, name] = [tag.split(':')[0], tag.split(':').slice(1).join(':')];
-    const el = document.createElement('span');
-    el.className = 'filter-tag';
-    el.textContent = `${name} (${count})`;
-    el.dataset.type = type;
-    el.dataset.name = name;
-    el.onclick = () => toggleFilter(el, type, name);
-    container.appendChild(el);
-  });
+  if (top.length > 0) {
+    const tagRow = document.createElement('div');
+    tagRow.className = 'filter-row';
+
+    top.forEach(([tag, count]) => {
+      const [type, ...rest] = tag.split(':');
+      const name = rest.join(':');
+      const el = document.createElement('span');
+      el.className = 'filter-tag';
+      el.textContent = `${name} (${count})`;
+      el.dataset.type = type;
+      el.dataset.name = name;
+      el.onclick = () => toggleFilter(el);
+      tagRow.appendChild(el);
+    });
+    container.appendChild(tagRow);
+  }
 }
 
-function toggleFilter(el, type, name) {
-  if (activeFilter === `${type}:${name}`) {
-    activeFilter = null;
+function toggleFilter(el) {
+  const key = `${el.dataset.type}:${el.dataset.name}`;
+
+  if (activeFilters.has(key)) {
+    activeFilters.delete(key);
     el.classList.remove('active');
   } else {
-    document.querySelectorAll('.filter-tag').forEach(t => t.classList.remove('active'));
-    activeFilter = `${type}:${name}`;
+    // 같은 type의 meeting 필터는 하나만 활성
+    if (el.dataset.type === 'meeting') {
+      document.querySelectorAll('.filter-tag[data-type="meeting"]')
+        .forEach(t => { t.classList.remove('active'); });
+      activeFilters.forEach(f => { if (f.startsWith('meeting:')) activeFilters.delete(f); });
+    }
+    activeFilters.add(key);
     el.classList.add('active');
   }
   applyFilters();
@@ -189,15 +306,24 @@ function applyFilters() {
   const query = document.getElementById('search').value.trim().toLowerCase();
   let filtered = ALL_CARDS;
 
-  if (activeFilter) {
-    const [type, name] = [activeFilter.split(':')[0], activeFilter.split(':').slice(1).join(':')];
-    filtered = filtered.filter(c => {
-      if (type === 'person') return (c.persons || []).includes(name);
-      if (type === 'org') return (c.orgs || []).includes(name);
-      if (type === 'kw') return (c.keywords || []).includes(name);
-      return true;
-    });
-  }
+  // 필터 적용
+  activeFilters.forEach(filter => {
+    const [type, ...rest] = filter.split(':');
+    const name = rest.join(':');
+
+    if (type === 'meeting') {
+      const [date, committee] = name.split('|');
+      filtered = filtered.filter(c =>
+        c.meeting_date === date && (c.committee === committee || c.meeting_id === committee)
+      );
+    } else if (type === 'person') {
+      filtered = filtered.filter(c => (c.persons || []).includes(name));
+    } else if (type === 'org') {
+      filtered = filtered.filter(c => (c.orgs || []).includes(name));
+    } else if (type === 'kw') {
+      filtered = filtered.filter(c => (c.keywords || []).includes(name));
+    }
+  });
 
   if (query) {
     filtered = filtered.filter(c => {
@@ -211,6 +337,16 @@ function applyFilters() {
   }
 
   renderCards(filtered);
+}
+
+function formatMeetingTag(card) {
+  let dateLabel = card.meeting_date || '';
+  try {
+    const [y, m, d] = card.meeting_date.split('-');
+    dateLabel = `${y}년 ${parseInt(m)}월 ${parseInt(d)}일`;
+  } catch {}
+  const committee = card.committee || '';
+  return `${dateLabel} ${committee} 회의`;
 }
 
 function renderCards(cards) {
@@ -234,16 +370,19 @@ function renderCards(cards) {
   const dates = Object.keys(groups).sort().reverse();
 
   dates.forEach(date => {
-    // 날짜 포맷
     let dateLabel = date;
     try {
       const [y, m, d] = date.split('-');
       dateLabel = `${y}년 ${parseInt(m)}월 ${parseInt(d)}일`;
     } catch {}
 
-    const meetingIds = [...new Set(groups[date].map(c => c.committee || c.meeting_id))];
+    const committees = [...new Set(groups[date].map(c => c.committee).filter(Boolean))];
+    const groupLabel = committees.length
+      ? `${dateLabel} · ${committees.join(', ')}`
+      : dateLabel;
+
     html += `<div class="date-group">`;
-    html += `<div class="date-label">${dateLabel} · ${meetingIds.join(', ')}</div>`;
+    html += `<div class="date-label">${esc(groupLabel)}</div>`;
 
     groups[date].forEach(card => {
       const quotes = card.quotes || [];
@@ -251,24 +390,35 @@ function renderCards(cards) {
       const orgs = (card.orgs || []).slice(0, 3);
       const keywords = (card.keywords || []).slice(0, 4);
 
-      html += `<div class="card" onclick="this.classList.toggle('expanded')">`;
+      html += `<div class="card" onclick="toggleCard(event, this)">`;
       html += `<div class="card-title">${esc(card.title)}</div>`;
       html += `<div class="card-summary">${esc(card.summary)}</div>`;
 
-      // 메타 태그
+      // 메타 태그 — 첫 번째: 날짜+회의
       html += `<div class="card-meta">`;
-      persons.forEach(p => { html += `<span class="tag person">${esc(p)}</span>`; });
-      orgs.forEach(o => { html += `<span class="tag org">${esc(o)}</span>`; });
-      keywords.forEach(k => { html += `<span class="tag">${esc(k)}</span>`; });
+      const mtag = formatMeetingTag(card);
+      html += `<span class="tag meeting-tag" data-type="meeting" data-name="${esc(card.meeting_date + '|' + (card.committee || card.meeting_id))}" onclick="onTagClick(event, this)">${esc(mtag)}</span>`;
+
+      persons.forEach(p => {
+        html += `<span class="tag person" data-type="person" data-name="${esc(p)}" onclick="onTagClick(event, this)">${esc(p)}</span>`;
+      });
+      orgs.forEach(o => {
+        html += `<span class="tag org" data-type="org" data-name="${esc(o)}" onclick="onTagClick(event, this)">${esc(o)}</span>`;
+      });
+      keywords.forEach(k => {
+        html += `<span class="tag keyword" data-type="kw" data-name="${esc(k)}" onclick="onTagClick(event, this)">${esc(k)}</span>`;
+      });
       html += `</div>`;
 
       if (quotes.length) {
-        html += `<div class="toggle-hint">▼ 발언 ${quotes.length}건</div>`;
+        html += `<div class="toggle-hint">▼ 발언 ${quotes.length}건 보기</div>`;
         html += `<div class="quotes-section">`;
         html += `<div class="quotes-divider">발언 ${quotes.length}건</div>`;
         quotes.forEach(q => {
           let label = q.speaker || '?';
-          if (q.party) label += `(${q.party})`;
+          if (q.party && q.role) label += `(${q.party} ${q.role})`;
+          else if (q.party) label += `(${q.party})`;
+          else if (q.role) label += `(${q.role})`;
           html += `<div class="quote-item">`;
           html += `<div class="quote-speaker">${esc(label)}</div>`;
           html += `<div class="quote-text">${esc(q.quote || '')}</div>`;
@@ -288,9 +438,41 @@ function renderCards(cards) {
     `${cards.length}개 카드 · ${dates.length}개 날짜`;
 }
 
+function toggleCard(event, cardEl) {
+  // 태그 클릭이면 카드 토글하지 않음
+  if (event.target.closest('.tag')) return;
+  cardEl.classList.toggle('expanded');
+}
+
+function onTagClick(event, tagEl) {
+  event.stopPropagation();
+  const type = tagEl.dataset.type;
+  const name = tagEl.dataset.name;
+  const key = `${type}:${name}`;
+
+  // 해당 필터 태그를 상단에서 찾아 활성화
+  const filterTag = document.querySelector(`.filter-tag[data-type="${type}"][data-name="${name}"]`);
+
+  if (activeFilters.has(key)) {
+    // 이미 활성 → 해제
+    activeFilters.delete(key);
+    if (filterTag) filterTag.classList.remove('active');
+  } else {
+    // meeting 태그는 하나만
+    if (type === 'meeting') {
+      document.querySelectorAll('.filter-tag[data-type="meeting"]')
+        .forEach(t => t.classList.remove('active'));
+      activeFilters.forEach(f => { if (f.startsWith('meeting:')) activeFilters.delete(f); });
+    }
+    activeFilters.add(key);
+    if (filterTag) filterTag.classList.add('active');
+  }
+  applyFilters();
+}
+
 function esc(s) {
   if (!s) return '';
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 // 이벤트
