@@ -16,11 +16,13 @@ def export_json(db_path: str = None, output: str = None) -> list[dict]:
     conn = sqlite3.connect(db)
     conn.row_factory = sqlite3.Row
     rows = conn.execute("""
-        SELECT card_id, meeting_id, meeting_date, committee,
-               chunk_title, title, summary, quotes, keywords,
-               persons, orgs, utterance_count, created_at
-        FROM card
-        ORDER BY meeting_date DESC, card_id
+        SELECT c.card_id, c.meeting_id, c.meeting_date, c.committee,
+               c.chunk_title, c.title, c.summary, c.quotes, c.keywords,
+               c.persons, c.orgs, c.utterance_count, c.created_at,
+               m.meeting_type
+        FROM card c
+        LEFT JOIN meeting m ON c.meeting_id = m.meeting_id
+        ORDER BY c.meeting_date DESC, c.card_id
     """).fetchall()
     conn.close()
 
@@ -34,6 +36,9 @@ def export_json(db_path: str = None, output: str = None) -> list[dict]:
                 card[field] = json.loads(val) if val else []
             except (json.JSONDecodeError, TypeError):
                 card[field] = []
+        # meeting_type 기본값
+        if not card.get("meeting_type"):
+            card["meeting_type"] = "전체회의"
         cards.append(card)
 
     out_path = output or str(OUTPUT_DIR / "cards.json")

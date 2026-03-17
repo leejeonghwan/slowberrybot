@@ -175,6 +175,10 @@ body {
   box-shadow: 0 3px 12px rgba(0,0,0,0.08);
   transform: translateY(-1px);
 }
+.card-meeting-line {
+  font-size: 12px; color: #999; font-weight: 500;
+  margin-bottom: 4px; letter-spacing: -0.2px;
+}
 .card-title {
   font-size: 16px; font-weight: 700; color: #111;
   line-height: 1.45; margin-bottom: 6px;
@@ -426,13 +430,15 @@ function clearMeeting() {
   updateUI();
 }
 
-function formatMeetingTag(card) {
+function formatMeetingLine(card) {
   let d = card.meeting_date || '';
   try {
     const [y, m, day] = d.split('-');
     d = `${y}년 ${parseInt(m)}월 ${parseInt(day)}일`;
   } catch {}
-  return `${d} ${card.committee || ''} 회의`;
+  const committee = card.committee || '';
+  const mtype = card.meeting_type || '전체회의';
+  return `${d} ${committee} ${mtype}.`;
 }
 
 function renderCards(cards) {
@@ -475,13 +481,19 @@ function renderCards(cards) {
       const keywords = (card.keywords || []).slice(0, 4);
 
       html += `<div class="card" onclick="toggleCard(event, this)">`;
-      html += `<div class="card-title">${esc(card.title)}</div>`;
+
+      // 첫 줄: 날짜 + 위원회 + 전체회의
+      const meetingLine = formatMeetingLine(card);
+      html += `<div class="card-meeting-line">${esc(meetingLine)}</div>`;
+
+      // 제목 (마침표 보장)
+      let title = card.title || '';
+      if (title && !title.endsWith('.') && !title.endsWith('。')) title += '.';
+      html += `<div class="card-title">${esc(title)}</div>`;
       html += `<div class="card-summary">${esc(card.summary)}</div>`;
 
-      // 태그 — 슬로우레터 스타일
+      // 태그 — meeting 태그 제거 (첫 줄로 이동)
       html += `<div class="card-tags">`;
-      const mtag = formatMeetingTag(card);
-      html += `<span class="tag tag-meeting" onclick="event.stopPropagation(); searchEntity('${esc(card.committee || '')}')">${esc(mtag)}</span>`;
       persons.forEach(p => {
         html += `<span class="tag tag-person" onclick="event.stopPropagation(); searchEntity('${esc(p)}')">${esc(p)}</span>`;
       });
