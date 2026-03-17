@@ -74,7 +74,8 @@
       "민주당"
     ],
     "utterance_count": 139,
-    "created_at": "2026-03-17 01:05:06"
+    "created_at": "2026-03-17 01:05:06",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "N053832_02",
@@ -137,7 +138,8 @@
       "검찰"
     ],
     "utterance_count": 139,
-    "created_at": "2026-03-17 01:05:06"
+    "created_at": "2026-03-17 01:05:06",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "N053832_03",
@@ -186,7 +188,8 @@
       "검찰"
     ],
     "utterance_count": 139,
-    "created_at": "2026-03-17 01:05:06"
+    "created_at": "2026-03-17 01:05:06",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "N053832_04",
@@ -234,7 +237,8 @@
       "개인정보보호위원회"
     ],
     "utterance_count": 139,
-    "created_at": "2026-03-17 01:05:06"
+    "created_at": "2026-03-17 01:05:06",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "N053832_05",
@@ -287,7 +291,8 @@
       "국세청"
     ],
     "utterance_count": 148,
-    "created_at": "2026-03-17 01:05:06"
+    "created_at": "2026-03-17 01:05:06",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "N053832_06",
@@ -347,7 +352,8 @@
       "TV조선"
     ],
     "utterance_count": 148,
-    "created_at": "2026-03-17 01:05:06"
+    "created_at": "2026-03-17 01:05:06",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "N053832_07",
@@ -398,7 +404,8 @@
       "과학기술정보통신부"
     ],
     "utterance_count": 148,
-    "created_at": "2026-03-17 01:05:06"
+    "created_at": "2026-03-17 01:05:06",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "N053832_08",
@@ -450,7 +457,8 @@
       "쿠팡"
     ],
     "utterance_count": 148,
-    "created_at": "2026-03-17 01:05:06"
+    "created_at": "2026-03-17 01:05:06",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "N053832_09",
@@ -501,7 +509,8 @@
       "국회"
     ],
     "utterance_count": 148,
-    "created_at": "2026-03-17 01:05:06"
+    "created_at": "2026-03-17 01:05:06",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "N053832_10",
@@ -555,7 +564,8 @@
       "윤리위원회"
     ],
     "utterance_count": 148,
-    "created_at": "2026-03-17 01:05:06"
+    "created_at": "2026-03-17 01:05:06",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "N053832_11",
@@ -598,7 +608,8 @@
       "국회 위원회"
     ],
     "utterance_count": 160,
-    "created_at": "2026-03-17 01:05:06"
+    "created_at": "2026-03-17 01:05:06",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "N053832_12",
@@ -636,7 +647,8 @@
       "10·29이태원참사진상규명위원회"
     ],
     "utterance_count": 160,
-    "created_at": "2026-03-17 01:05:06"
+    "created_at": "2026-03-17 01:05:06",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "N053832_13",
@@ -667,7 +679,8 @@
       "인사혁신처"
     ],
     "utterance_count": 160,
-    "created_at": "2026-03-17 01:05:06"
+    "created_at": "2026-03-17 01:05:06",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "N053832_14",
@@ -695,7 +708,8 @@
     ],
     "orgs": [],
     "utterance_count": 160,
-    "created_at": "2026-03-17 01:05:06"
+    "created_at": "2026-03-17 01:05:06",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "N053832_15",
@@ -747,7 +761,8 @@
       "국가정보원"
     ],
     "utterance_count": 160,
-    "created_at": "2026-03-17 01:05:06"
+    "created_at": "2026-03-17 01:05:06",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "N053832_16",
@@ -790,7 +805,8 @@
       "진실·화해위원회"
     ],
     "utterance_count": 160,
-    "created_at": "2026-03-17 01:05:06"
+    "created_at": "2026-03-17 01:05:06",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "N053832_17",
@@ -835,7 +851,8 @@
       "국회 법제사법위원회"
     ],
     "utterance_count": 160,
-    "created_at": "2026-03-17 01:05:06"
+    "created_at": "2026-03-17 01:05:06",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "N053832_18",
@@ -873,7 +890,8 @@
       "행정안전부"
     ],
     "utterance_count": 160,
-    "created_at": "2026-03-17 01:05:06"
+    "created_at": "2026-03-17 01:05:06",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "N053832_19",
@@ -904,7 +922,8 @@
       "헌법재판소"
     ],
     "utterance_count": 160,
-    "created_at": "2026-03-17 01:05:06"
+    "created_at": "2026-03-17 01:05:06",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "N053832_20",
@@ -941,7 +960,8 @@
       "행정안전부"
     ],
     "utterance_count": 160,
-    "created_at": "2026-03-17 01:05:06"
+    "created_at": "2026-03-17 01:05:06",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "N053832_21",
@@ -1009,7 +1029,8 @@
       "운영위원회"
     ],
     "utterance_count": 302,
-    "created_at": "2026-03-17 01:05:06"
+    "created_at": "2026-03-17 01:05:06",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "N053832_22",
@@ -1079,7 +1100,8 @@
       "서울중앙지방법원"
     ],
     "utterance_count": 302,
-    "created_at": "2026-03-17 01:05:06"
+    "created_at": "2026-03-17 01:05:06",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_01",
@@ -1124,7 +1146,8 @@
       "로펌"
     ],
     "utterance_count": 177,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_02",
@@ -1162,7 +1185,8 @@
       "국가인권위원회"
     ],
     "utterance_count": 177,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_03",
@@ -1201,7 +1225,8 @@
       "국회운영위원회"
     ],
     "utterance_count": 177,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_04",
@@ -1238,7 +1263,8 @@
       "국가인권위원회"
     ],
     "utterance_count": 177,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_05",
@@ -1275,7 +1301,8 @@
       "국가인권위원회"
     ],
     "utterance_count": 177,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_06",
@@ -1315,7 +1342,8 @@
       "국가인권위원회"
     ],
     "utterance_count": 177,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_07",
@@ -1361,7 +1389,8 @@
       "유엔"
     ],
     "utterance_count": 152,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_08",
@@ -1407,7 +1436,8 @@
       "국가인권위원회"
     ],
     "utterance_count": 152,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_09",
@@ -1447,7 +1477,8 @@
       "총신대학교"
     ],
     "utterance_count": 152,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_10",
@@ -1494,7 +1525,8 @@
       "CTS"
     ],
     "utterance_count": 152,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_11",
@@ -1533,7 +1565,8 @@
       "국제올림픽위원회"
     ],
     "utterance_count": 152,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_12",
@@ -1599,7 +1632,8 @@
       "국회운영위원회"
     ],
     "utterance_count": 152,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_13",
@@ -1658,7 +1692,8 @@
       "국회운영위원회"
     ],
     "utterance_count": 152,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_14",
@@ -1710,7 +1745,8 @@
       "국가인권위원회"
     ],
     "utterance_count": 152,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_15",
@@ -1757,7 +1793,8 @@
       "대한건설협회"
     ],
     "utterance_count": 152,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_16",
@@ -1803,7 +1840,8 @@
       "국가인권위원회"
     ],
     "utterance_count": 152,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_17",
@@ -1878,7 +1916,8 @@
       "서울시"
     ],
     "utterance_count": 151,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_18",
@@ -1940,7 +1979,8 @@
       "국가인권위원회"
     ],
     "utterance_count": 151,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_19",
@@ -2003,7 +2043,8 @@
       "프랑스 정부"
     ],
     "utterance_count": 151,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_20",
@@ -2053,7 +2094,8 @@
       "국가인권위원회"
     ],
     "utterance_count": 151,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_21",
@@ -2090,7 +2132,8 @@
       "국가인권위원회"
     ],
     "utterance_count": 151,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_22",
@@ -2149,7 +2192,8 @@
       "국가인권위원회"
     ],
     "utterance_count": 152,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_23",
@@ -2203,7 +2247,8 @@
       "방송통신위원회"
     ],
     "utterance_count": 152,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_24",
@@ -2256,7 +2301,8 @@
       "한겨레신문"
     ],
     "utterance_count": 152,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_25",
@@ -2294,7 +2340,8 @@
       "국가인권위원회"
     ],
     "utterance_count": 152,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_26",
@@ -2370,7 +2417,8 @@
       "국가인권위원회"
     ],
     "utterance_count": 160,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_27",
@@ -2409,7 +2457,8 @@
       "헌법재판소"
     ],
     "utterance_count": 160,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_28",
@@ -2454,7 +2503,8 @@
       "국가인권위원회"
     ],
     "utterance_count": 160,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_29",
@@ -2495,7 +2545,8 @@
       "유엔 인권이사회"
     ],
     "utterance_count": 160,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_30",
@@ -2540,7 +2591,8 @@
       "국가인권위원회"
     ],
     "utterance_count": 160,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_31",
@@ -2578,7 +2630,8 @@
       "국회운영위원회"
     ],
     "utterance_count": 160,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_32",
@@ -2633,7 +2686,8 @@
       "국정원"
     ],
     "utterance_count": 150,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_33",
@@ -2685,7 +2739,8 @@
       "국가인권위원회"
     ],
     "utterance_count": 150,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_34",
@@ -2737,7 +2792,8 @@
       "북한인권증진센터"
     ],
     "utterance_count": 150,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_35",
@@ -2783,7 +2839,8 @@
       "한국교회총연합회"
     ],
     "utterance_count": 150,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_36",
@@ -2827,7 +2884,8 @@
       "국회운영위원회"
     ],
     "utterance_count": 150,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_37",
@@ -2870,7 +2928,8 @@
       "국가인권위원회"
     ],
     "utterance_count": 150,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_38",
@@ -2930,7 +2989,8 @@
       "미국 질병통제예방센터(CDC)"
     ],
     "utterance_count": 192,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_39",
@@ -2981,7 +3041,8 @@
       "헌법재판소"
     ],
     "utterance_count": 192,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_40",
@@ -3025,7 +3086,8 @@
       "YTN"
     ],
     "utterance_count": 192,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_41",
@@ -3073,7 +3135,8 @@
     ],
     "orgs": [],
     "utterance_count": 192,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_42",
@@ -3126,7 +3189,8 @@
       "국회운영위원회"
     ],
     "utterance_count": 156,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_43",
@@ -3171,7 +3235,8 @@
       "국회운영위원회"
     ],
     "utterance_count": 156,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_44",
@@ -3223,7 +3288,8 @@
       "국회운영위원회"
     ],
     "utterance_count": 156,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_45",
@@ -3275,7 +3341,8 @@
       "국회운영위원회"
     ],
     "utterance_count": 156,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_46",
@@ -3358,7 +3425,8 @@
       "복음법률가회"
     ],
     "utterance_count": 156,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_47",
@@ -3418,7 +3486,8 @@
       "유진그룹"
     ],
     "utterance_count": 156,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_48",
@@ -3465,7 +3534,8 @@
       "헌법재판소"
     ],
     "utterance_count": 156,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_49",
@@ -3510,7 +3580,8 @@
       "국가인권위원회"
     ],
     "utterance_count": 156,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_50",
@@ -3551,7 +3622,8 @@
       "해병대"
     ],
     "utterance_count": 156,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_51",
@@ -3610,7 +3682,8 @@
       "국가인권위원회"
     ],
     "utterance_count": 150,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_52",
@@ -3655,7 +3728,8 @@
       "국가인권위원회"
     ],
     "utterance_count": 150,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_53",
@@ -3700,7 +3774,8 @@
       "국가인권위원회"
     ],
     "utterance_count": 150,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_54",
@@ -3744,7 +3819,8 @@
       "국가인권위원회"
     ],
     "utterance_count": 150,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_55",
@@ -3789,7 +3865,8 @@
       "군인권보호관"
     ],
     "utterance_count": 150,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_56",
@@ -3834,7 +3911,8 @@
       "국가인권위원회"
     ],
     "utterance_count": 150,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_57",
@@ -3880,7 +3958,8 @@
       "한국기자협회"
     ],
     "utterance_count": 150,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_58",
@@ -3931,7 +4010,8 @@
       "국회운영위원회"
     ],
     "utterance_count": 72,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_59",
@@ -3988,7 +4068,8 @@
       "국회운영위원회"
     ],
     "utterance_count": 72,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_60",
@@ -4038,7 +4119,8 @@
       "국회운영위원회"
     ],
     "utterance_count": 72,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_61",
@@ -4084,7 +4166,8 @@
       "국회운영위원회"
     ],
     "utterance_count": 72,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   },
   {
     "card_id": "054042_62",
@@ -4130,6 +4213,7 @@
       "유진그룹"
     ],
     "utterance_count": 72,
-    "created_at": "2026-03-17 02:24:10"
+    "created_at": "2026-03-17 02:24:10",
+    "meeting_type": "위원회"
   }
 ]
