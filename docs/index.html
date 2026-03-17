@@ -10,11 +10,10 @@
   --surface: #ffffff;
   --sidebar-bg: #1c1917;
   --sidebar-text: #e7e5e4;
-  --sidebar-width: 260px;
+  --sidebar-width: 240px;
   --text: #1c1917;
   --text2: #57534e;
   --accent: #fdad00;
-  --border: #e7e5e4;
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
@@ -35,9 +34,11 @@ body {
 .sidebar h2 {
   font-size: 1.15rem; font-weight: 800; color: var(--accent);
   margin-bottom: 0.2rem; letter-spacing: -0.5px;
+  cursor: pointer;
 }
+.sidebar h2:hover { text-decoration: underline; text-decoration-thickness: 2px; }
 .sidebar .sub {
-  font-size: 0.72rem; color: #a8a29e; margin-bottom: 1.2rem;
+  font-size: 0.72rem; color: #a8a29e; margin-bottom: 1rem;
   line-height: 1.4;
 }
 .sidebar .divider {
@@ -50,34 +51,12 @@ body {
 }
 
 /* 사이드바 통계 */
-.sidebar .stat-row {
+.stat-row {
   display: flex; justify-content: space-between; align-items: center;
-  padding: 0.2rem 0;
+  padding: 0.15rem 0;
 }
-.sidebar .stat-label { font-size: 0.75rem; color: #a8a29e; }
-.sidebar .stat-value { font-size: 0.85rem; font-weight: 700; color: #fdad00; }
-
-/* 사이드바 태그 */
-.sidebar-tags {
-  display: flex; flex-wrap: wrap; gap: 4px;
-  margin-top: 0.3rem;
-}
-.sidebar-tag {
-  font-size: 0.7rem; padding: 3px 8px;
-  background: #292524; color: #d6d3d1;
-  border-radius: 10px; cursor: pointer;
-  transition: all 0.15s; border: 1px solid #3a3835;
-  white-space: nowrap;
-}
-.sidebar-tag:hover { background: #44403c; color: #fff; }
-.sidebar-tag.active {
-  background: var(--accent); color: #1c1917;
-  border-color: var(--accent); font-weight: 600;
-}
-.sidebar-tag .cnt {
-  font-size: 0.6rem; color: #78716c; margin-left: 2px;
-}
-.sidebar-tag.active .cnt { color: rgba(0,0,0,0.5); }
+.stat-label { font-size: 0.75rem; color: #a8a29e; }
+.stat-value { font-size: 0.85rem; font-weight: 700; color: var(--accent); }
 
 /* 사이드바 회의 목록 */
 .meeting-list {
@@ -85,7 +64,7 @@ body {
   margin-top: 0.3rem;
 }
 .meeting-item {
-  font-size: 0.72rem; padding: 5px 8px;
+  font-size: 0.72rem; padding: 6px 8px;
   background: #292524; color: #d6d3d1;
   border-radius: 6px; cursor: pointer;
   transition: all 0.15s; border: 1px solid transparent;
@@ -96,8 +75,12 @@ body {
   background: var(--accent); color: #1c1917;
   font-weight: 600;
 }
-.meeting-item .m-count {
+.meeting-item .m-date {
   font-size: 0.6rem; color: #78716c;
+}
+.meeting-item.active .m-date { color: rgba(0,0,0,0.5); }
+.meeting-item .m-count {
+  font-size: 0.6rem; color: #78716c; float: right;
 }
 .meeting-item.active .m-count { color: rgba(0,0,0,0.5); }
 
@@ -110,28 +93,21 @@ body {
   box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
 
-/* ── 메인 콘텐츠 ── */
-.main {
-  margin-left: var(--sidebar-width);
-  min-height: 100vh;
-}
+/* ── 메인 ── */
+.main { margin-left: var(--sidebar-width); min-height: 100vh; }
 
-/* 헤더 */
+/* 헤더 (모바일 전용) */
 .header {
   background: var(--bg);
   border-bottom: 1px solid rgba(0,0,0,0.08);
-  padding: 1.2rem 2rem;
+  padding: 1rem 2rem; display: none;
 }
-.header-inner {
-  max-width: 720px; margin: 0 auto;
-}
-.header-inner h1 {
-  font-size: 1.6rem; font-weight: 800; color: var(--text);
+.header h1 {
+  font-size: 1.5rem; font-weight: 800; color: var(--text);
   letter-spacing: -0.5px;
-  display: none; /* 데스크톱에서는 사이드바에 제목 있으므로 숨김 */
 }
 
-/* 검색/정렬 바 */
+/* 검색 바 */
 .controls {
   background: var(--bg);
   border-bottom: 1px solid rgba(0,0,0,0.08);
@@ -156,17 +132,23 @@ body {
 }
 .search-box::placeholder { color: #999; }
 
-/* 활성 필터 표시 */
+/* 검색 초기화 */
+.search-reset {
+  font-size: 12px; color: rgba(0,0,0,0.4); cursor: pointer;
+  padding: 4px 10px; border-radius: 8px;
+  transition: all 0.15s;
+}
+.search-reset:hover { background: rgba(0,0,0,0.08); color: rgba(0,0,0,0.6); }
+
+/* 활성 필터 칩 */
 .active-filters {
-  max-width: 720px; margin: 0 auto;
-  padding: 6px 0 0;
+  max-width: 720px; margin: 6px auto 0;
   display: flex; flex-wrap: wrap; gap: 5px;
 }
 .active-filter-chip {
   font-size: 11px; padding: 3px 10px;
   background: #1c1917; color: var(--accent);
-  border-radius: 12px; cursor: pointer;
-  font-weight: 600;
+  border-radius: 12px; cursor: pointer; font-weight: 600;
 }
 .active-filter-chip:hover { opacity: 0.8; }
 .active-filter-chip::after { content: ' ✕'; font-size: 10px; }
@@ -176,7 +158,7 @@ body {
 .cards-inner { max-width: 720px; margin: 0 auto; }
 
 /* 날짜 그룹 */
-.date-group { margin-bottom: 6px; }
+.date-group { margin-bottom: 4px; }
 .date-label {
   font-size: 13px; font-weight: 700; color: rgba(0,0,0,0.4);
   padding: 20px 0 8px; letter-spacing: -0.3px;
@@ -201,22 +183,22 @@ body {
   font-size: 14px; color: #444; line-height: 1.7;
 }
 
-/* 카드 태그 */
-.card-meta {
+/* 카드 태그 — 슬로우레터 스타일 (인라인, 클릭→검색) */
+.card-tags {
   margin-top: 10px; display: flex; flex-wrap: wrap; gap: 4px;
 }
-.card-meta .tag {
+.card-tags .tag {
   font-size: 11px; padding: 2px 8px;
   border-radius: 10px; cursor: pointer;
   transition: all 0.15s;
 }
-.card-meta .tag:hover { opacity: 0.75; }
-.card-meta .tag.meeting-tag {
+.card-tags .tag:hover { opacity: 0.7; }
+.card-tags .tag-meeting {
   background: var(--accent); color: #1a1a1a; font-weight: 600;
 }
-.card-meta .tag.person { background: #e8f5e9; color: #2e7d32; }
-.card-meta .tag.org { background: #fff3e0; color: #e65100; }
-.card-meta .tag.keyword { background: #f3f4f6; color: #555; }
+.card-tags .tag-person { background: var(--accent); color: #1a1a1a; }
+.card-tags .tag-org { background: #bbf7d0; color: #166534; }
+.card-tags .tag-keyword { background: #f3f4f6; color: #555; }
 
 /* 인용 */
 .quotes-section {
@@ -264,8 +246,7 @@ body {
   .sidebar.open { transform: translateX(0); }
   .menu-toggle { display: block; }
   .main { margin-left: 0; }
-  .header-inner h1 { display: block; }
-  .header { padding: 1rem 1rem; padding-left: 56px; }
+  .header { display: block; padding-left: 56px; }
   .controls { padding: 0.6rem 1rem; }
   .cards-area { padding: 0 1rem 1rem; }
 }
@@ -273,12 +254,10 @@ body {
 </head>
 <body>
 
-<!-- 모바일 햄버거 -->
 <button class="menu-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
 
-<!-- 사이드바 -->
 <aside class="sidebar" id="sidebar">
-  <h2>슬로우 어셈블리</h2>
+  <h2 onclick="resetAll()">슬로우 어셈블리</h2>
   <div class="sub">국회 회의록 쟁점 카드</div>
 
   <div class="stat-row">
@@ -293,31 +272,17 @@ body {
   <hr class="divider">
   <div class="section-label">회의</div>
   <div class="meeting-list" id="meeting-list"></div>
-
-  <hr class="divider">
-  <div class="section-label">인물</div>
-  <div class="sidebar-tags" id="person-tags"></div>
-
-  <hr class="divider">
-  <div class="section-label">기관</div>
-  <div class="sidebar-tags" id="org-tags"></div>
-
-  <hr class="divider">
-  <div class="section-label">키워드</div>
-  <div class="sidebar-tags" id="kw-tags"></div>
 </aside>
 
-<!-- 메인 -->
 <div class="main">
   <div class="header">
-    <div class="header-inner">
-      <h1>슬로우 어셈블리</h1>
-    </div>
+    <h1>슬로우 어셈블리</h1>
   </div>
 
   <div class="controls">
     <div class="controls-inner">
       <input type="text" class="search-box" id="search" placeholder="검색: 제목, 인물, 기관, 키워드…">
+      <span class="search-reset" id="search-reset" onclick="resetAll()" style="display:none">검색 초기화</span>
     </div>
     <div class="active-filters" id="active-filters"></div>
   </div>
@@ -330,7 +295,8 @@ body {
 
 <script>
 let ALL_CARDS = [];
-let activeFilters = new Set();
+let activeMeeting = null; // 회의 필터 (하나만)
+let searchQuery = '';
 
 async function loadCards() {
   try {
@@ -339,7 +305,7 @@ async function loadCards() {
     const meetings = new Set(ALL_CARDS.map(c => c.meeting_id));
     document.getElementById('stat-cards').textContent = ALL_CARDS.length;
     document.getElementById('stat-meetings').textContent = meetings.size;
-    buildSidebar();
+    buildMeetingList();
     renderCards(ALL_CARDS);
   } catch (e) {
     document.getElementById('cards').innerHTML =
@@ -347,8 +313,7 @@ async function loadCards() {
   }
 }
 
-function buildSidebar() {
-  // 회의 목록
+function buildMeetingList() {
   const meetingMap = {};
   ALL_CARDS.forEach(c => {
     const key = `${c.meeting_date}|${c.committee || c.meeting_id}`;
@@ -358,150 +323,116 @@ function buildSidebar() {
     meetingMap[key].count++;
   });
 
-  const meetingList = document.getElementById('meeting-list');
+  const list = document.getElementById('meeting-list');
   Object.values(meetingMap)
     .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
     .forEach(mt => {
       let dateLabel = mt.date || '날짜 미상';
       try {
         const [y, m, d] = mt.date.split('-');
-        dateLabel = `${parseInt(m)}월 ${parseInt(d)}일`;
+        dateLabel = `${y}년 ${parseInt(m)}월 ${parseInt(d)}일`;
       } catch {}
       const el = document.createElement('div');
       el.className = 'meeting-item';
-      el.innerHTML = `${esc(mt.committee)}<br><span style="font-size:0.65rem;color:#78716c">${dateLabel}</span> <span class="m-count">${mt.count}건</span>`;
-      el.dataset.type = 'meeting';
-      el.dataset.name = `${mt.date}|${mt.committee}`;
-      el.onclick = () => sidebarToggle(el);
-      meetingList.appendChild(el);
+      el.innerHTML = `${esc(mt.committee)}<br><span class="m-date">${dateLabel}</span> <span class="m-count">${mt.count}건</span>`;
+      el.dataset.key = `${mt.date}|${mt.committee}`;
+      el.onclick = () => toggleMeeting(el);
+      list.appendChild(el);
     });
-
-  // 빈도 수집
-  const freq = { person: {}, org: {}, kw: {} };
-  ALL_CARDS.forEach(c => {
-    (c.persons || []).forEach(p => freq.person[p] = (freq.person[p] || 0) + 1);
-    (c.orgs || []).forEach(o => freq.org[o] = (freq.org[o] || 0) + 1);
-    (c.keywords || []).forEach(k => freq.kw[k] = (freq.kw[k] || 0) + 1);
-  });
-
-  fillSidebarTags('person-tags', freq.person, 'person', 15);
-  fillSidebarTags('org-tags', freq.org, 'org', 15);
-  fillSidebarTags('kw-tags', freq.kw, 'kw', 15);
 }
 
-function fillSidebarTags(containerId, freqMap, type, max) {
-  const container = document.getElementById(containerId);
-  const sorted = Object.entries(freqMap).sort((a, b) => b[1] - a[1]).slice(0, max);
-  sorted.forEach(([name, count]) => {
-    const el = document.createElement('span');
-    el.className = 'sidebar-tag';
-    el.innerHTML = `${esc(name)}<span class="cnt">${count}</span>`;
-    el.dataset.type = type;
-    el.dataset.name = name;
-    el.onclick = () => sidebarToggle(el);
-    container.appendChild(el);
-  });
-}
-
-function sidebarToggle(el) {
-  const key = `${el.dataset.type}:${el.dataset.name}`;
-  if (activeFilters.has(key)) {
-    activeFilters.delete(key);
+function toggleMeeting(el) {
+  const key = el.dataset.key;
+  if (activeMeeting === key) {
+    activeMeeting = null;
     el.classList.remove('active');
   } else {
-    if (el.dataset.type === 'meeting') {
-      document.querySelectorAll('.meeting-item').forEach(t => t.classList.remove('active'));
-      activeFilters.forEach(f => { if (f.startsWith('meeting:')) activeFilters.delete(f); });
-    }
-    activeFilters.add(key);
+    document.querySelectorAll('.meeting-item').forEach(t => t.classList.remove('active'));
+    activeMeeting = key;
     el.classList.add('active');
   }
-  renderActiveFilters();
-  applyFilters();
-  // 모바일: 사이드바 닫기
+  updateUI();
   if (window.innerWidth <= 768) {
     document.querySelector('.sidebar').classList.remove('open');
   }
 }
 
-function renderActiveFilters() {
-  const container = document.getElementById('active-filters');
-  if (activeFilters.size === 0) {
-    container.innerHTML = '';
-    return;
-  }
-  let html = '';
-  activeFilters.forEach(f => {
-    const [type, ...rest] = f.split(':');
-    let name = rest.join(':');
-    if (type === 'meeting') {
-      const [date, committee] = name.split('|');
-      let dl = date;
-      try { const [y,m,d] = date.split('-'); dl = `${y}년 ${parseInt(m)}월 ${parseInt(d)}일`; } catch {}
-      name = `${dl} ${committee}`;
-    }
-    html += `<span class="active-filter-chip" data-key="${esc(f)}" onclick="removeFilter(this)">${esc(name)}</span>`;
-  });
-  container.innerHTML = html;
-}
-
-function removeFilter(chip) {
-  const key = chip.dataset.key;
-  activeFilters.delete(key);
-  // 사이드바에서 active 해제
-  const [type, ...rest] = key.split(':');
-  const name = rest.join(':');
-  if (type === 'meeting') {
-    document.querySelectorAll(`.meeting-item[data-name="${name}"]`).forEach(t => t.classList.remove('active'));
+// 태그 클릭 → 검색창에 텍스트 넣기 (슬로우레터 방식)
+function searchEntity(name) {
+  const searchBox = document.getElementById('search');
+  if (searchBox.value === name) {
+    searchBox.value = '';
   } else {
-    document.querySelectorAll(`.sidebar-tag[data-type="${type}"][data-name="${name}"]`).forEach(t => t.classList.remove('active'));
+    searchBox.value = name;
   }
-  renderActiveFilters();
-  applyFilters();
+  searchQuery = searchBox.value.trim().toLowerCase();
+  updateUI();
 }
 
-function applyFilters() {
-  const query = document.getElementById('search').value.trim().toLowerCase();
+function resetAll() {
+  document.getElementById('search').value = '';
+  searchQuery = '';
+  activeMeeting = null;
+  document.querySelectorAll('.meeting-item').forEach(t => t.classList.remove('active'));
+  updateUI();
+}
+
+function updateUI() {
+  const searchBox = document.getElementById('search');
+  searchQuery = searchBox.value.trim().toLowerCase();
+
+  // 검색 초기화 버튼
+  const resetBtn = document.getElementById('search-reset');
+  resetBtn.style.display = (searchQuery || activeMeeting) ? 'inline' : 'none';
+
+  // 활성 필터 칩
+  const filtersEl = document.getElementById('active-filters');
+  let chips = '';
+  if (activeMeeting) {
+    const [date, committee] = activeMeeting.split('|');
+    let dl = date;
+    try { const [y,m,d] = date.split('-'); dl = `${y}년 ${parseInt(m)}월 ${parseInt(d)}일`; } catch {}
+    chips += `<span class="active-filter-chip" onclick="clearMeeting()">${esc(dl + ' ' + committee)}</span>`;
+  }
+  filtersEl.innerHTML = chips;
+
+  // 필터링
   let filtered = ALL_CARDS;
 
-  activeFilters.forEach(filter => {
-    const [type, ...rest] = filter.split(':');
-    const name = rest.join(':');
-    if (type === 'meeting') {
-      const [date, committee] = name.split('|');
-      filtered = filtered.filter(c =>
-        c.meeting_date === date && (c.committee === committee || c.meeting_id === committee)
-      );
-    } else if (type === 'person') {
-      filtered = filtered.filter(c => (c.persons || []).includes(name));
-    } else if (type === 'org') {
-      filtered = filtered.filter(c => (c.orgs || []).includes(name));
-    } else if (type === 'kw') {
-      filtered = filtered.filter(c => (c.keywords || []).includes(name));
-    }
-  });
+  if (activeMeeting) {
+    const [date, committee] = activeMeeting.split('|');
+    filtered = filtered.filter(c =>
+      c.meeting_date === date && (c.committee === committee || c.meeting_id === committee)
+    );
+  }
 
-  if (query) {
+  if (searchQuery) {
     filtered = filtered.filter(c => {
       const text = [
-        c.title, c.summary,
+        c.title, c.summary, c.committee,
         ...(c.persons || []), ...(c.orgs || []), ...(c.keywords || []),
-        ...(c.quotes || []).map(q => q.speaker + ' ' + q.quote)
+        ...(c.quotes || []).map(q => (q.speaker || '') + ' ' + (q.party || '') + ' ' + (q.quote || ''))
       ].join(' ').toLowerCase();
-      return text.includes(query);
+      return text.includes(searchQuery);
     });
   }
 
   renderCards(filtered);
 }
 
+function clearMeeting() {
+  activeMeeting = null;
+  document.querySelectorAll('.meeting-item').forEach(t => t.classList.remove('active'));
+  updateUI();
+}
+
 function formatMeetingTag(card) {
-  let dateLabel = card.meeting_date || '';
+  let d = card.meeting_date || '';
   try {
-    const [y, m, d] = card.meeting_date.split('-');
-    dateLabel = `${y}년 ${parseInt(m)}월 ${parseInt(d)}일`;
+    const [y, m, day] = d.split('-');
+    d = `${y}년 ${parseInt(m)}월 ${parseInt(day)}일`;
   } catch {}
-  return `${dateLabel} ${card.committee || ''} 회의`;
+  return `${d} ${card.committee || ''} 회의`;
 }
 
 function renderCards(cards) {
@@ -547,17 +478,18 @@ function renderCards(cards) {
       html += `<div class="card-title">${esc(card.title)}</div>`;
       html += `<div class="card-summary">${esc(card.summary)}</div>`;
 
-      html += `<div class="card-meta">`;
+      // 태그 — 슬로우레터 스타일
+      html += `<div class="card-tags">`;
       const mtag = formatMeetingTag(card);
-      html += `<span class="tag meeting-tag" data-type="meeting" data-name="${esc(card.meeting_date + '|' + (card.committee || card.meeting_id))}" onclick="onTagClick(event, this)">${esc(mtag)}</span>`;
+      html += `<span class="tag tag-meeting" onclick="event.stopPropagation(); searchEntity('${esc(card.committee || '')}')">${esc(mtag)}</span>`;
       persons.forEach(p => {
-        html += `<span class="tag person" data-type="person" data-name="${esc(p)}" onclick="onTagClick(event, this)">${esc(p)}</span>`;
+        html += `<span class="tag tag-person" onclick="event.stopPropagation(); searchEntity('${esc(p)}')">${esc(p)}</span>`;
       });
       orgs.forEach(o => {
-        html += `<span class="tag org" data-type="org" data-name="${esc(o)}" onclick="onTagClick(event, this)">${esc(o)}</span>`;
+        html += `<span class="tag tag-org" onclick="event.stopPropagation(); searchEntity('${esc(o)}')">${esc(o)}</span>`;
       });
       keywords.forEach(k => {
-        html += `<span class="tag keyword" data-type="kw" data-name="${esc(k)}" onclick="onTagClick(event, this)">${esc(k)}</span>`;
+        html += `<span class="tag tag-keyword" onclick="event.stopPropagation(); searchEntity('${esc(k)}')">${esc(k)}</span>`;
       });
       html += `</div>`;
 
@@ -592,48 +524,15 @@ function toggleCard(event, cardEl) {
   cardEl.classList.toggle('expanded');
 }
 
-function onTagClick(event, tagEl) {
-  event.stopPropagation();
-  const type = tagEl.dataset.type;
-  const name = tagEl.dataset.name;
-  const key = `${type}:${name}`;
-
-  // 사이드바 태그와 동기화
-  if (type === 'meeting') {
-    const sideEl = document.querySelector(`.meeting-item[data-name="${name}"]`);
-    if (sideEl) sidebarToggle(sideEl);
-    else {
-      // 사이드바에 없는 meeting
-      if (activeFilters.has(key)) {
-        activeFilters.delete(key);
-      } else {
-        activeFilters.forEach(f => { if (f.startsWith('meeting:')) activeFilters.delete(f); });
-        document.querySelectorAll('.meeting-item').forEach(t => t.classList.remove('active'));
-        activeFilters.add(key);
-      }
-      renderActiveFilters();
-      applyFilters();
-    }
-  } else {
-    const sideEl = document.querySelector(`.sidebar-tag[data-type="${type}"][data-name="${name}"]`);
-    if (sideEl) sidebarToggle(sideEl);
-    else {
-      if (activeFilters.has(key)) activeFilters.delete(key);
-      else activeFilters.add(key);
-      renderActiveFilters();
-      applyFilters();
-    }
-  }
-}
-
 function esc(s) {
   if (!s) return '';
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
-document.getElementById('search').addEventListener('input', applyFilters);
+// 이벤트
+document.getElementById('search').addEventListener('input', updateUI);
 
-// 사이드바 외부 클릭 시 닫기 (모바일)
+// 모바일 사이드바 외부 클릭
 document.addEventListener('click', (e) => {
   if (window.innerWidth <= 768) {
     const sidebar = document.querySelector('.sidebar');
