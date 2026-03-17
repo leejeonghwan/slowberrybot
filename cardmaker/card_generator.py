@@ -800,19 +800,74 @@ class CardGenerator:
 # CLI
 # ═══════════════════════════════════════
 
+def _print_cards(cards: list[dict]):
+    """카드 목록을 콘솔에 출력."""
+    print(f"\n{'='*60}")
+    print(f"생성된 카드: {len(cards)}개")
+    print(f"{'='*60}\n")
+    for card in cards:
+        print(f"제목: {card.get('title', '')}")
+        print(f"핵심: {card.get('summary', '')}")
+        print(f"발언:")
+        for c in card.get("quotes", card.get("comments", [])):
+            party = c.get("party", "")
+            role = c.get("role", "")
+            label = c["speaker"]
+            if party:
+                label += f"({party}"
+                if role:
+                    label += f" {role}"
+                label += ")"
+            elif role:
+                label += f"[{role}]"
+            quote = c.get("quote", c.get("text", ""))
+            print(f"  - {label}: \"{quote}\"")
+        print(f"키워드: {', '.join(card.get('keywords', []))}")
+        print(f"인물: {', '.join(card.get('persons', []))}")
+        print(f"기관: {', '.join(card.get('orgs', []))}")
+        print(f"회의: {card.get('committee', '')} {card.get('meeting_date', '')}")
+        print(f"발언: {card.get('utterance_count', 0)}건")
+        print()
+
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s [%(levelname)s] %(message)s")
 
     gen = CardGenerator(notify_fn=lambda m: print(m))
 
+    is_batch = "--batch" in sys.argv
     save_to_db = "--no-save" not in sys.argv
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
 
-    if args:
+    if is_batch:
+        # ── 전체 배치 모드 ──
+        limit = 0
+        for a in sys.argv[1:]:
+            if a.startswith("--limit="):
+                limit = int(a.split("=")[1])
+        print(f"\n🚀 전체 배치 시작" +
+              (f" (limit={limit})" if limit else "") + "\n")
+        stats = gen.generate_batch(meeting_ids=None, limit=limit)
+        print(f"\n{'='*60}")
+        print(f"📊 배치 완료")
+        print(f"  회의: {stats['meetings']}개 처리")
+        print(f"  카드: {stats['cards']}개 생성")
+        print(f"  건너뜀: {stats['skipped']}개")
+        print(f"  오류: {stats['errors']}개")
+        print(f"{'='*60}\n")
+
+    elif args:
         mid = args[0]
         print(f"\n지정 회의: {mid}\n")
         cards = gen.generate_cards(mid)
+
+        if cards and save_to_db:
+            gen._save_cards(cards)
+            print(f"💾 {len(cards)}개 카드 DB 저장 완료")
+
+        _print_cards(cards)
+
     else:
         # 랜덤 회의 1건 테스트
         conn = sqlite3.connect(str(DB_PATH))
@@ -838,36 +893,8 @@ if __name__ == "__main__":
             print("적합한 회의가 없습니다")
             sys.exit(1)
 
-    # DB 저장
-    if cards and save_to_db:
-        gen._save_cards(cards)
-        print(f"💾 {len(cards)}개 카드 DB 저장 완료")
+        if cards and save_to_db:
+            gen._save_cards(cards)
+            print(f"💾 {len(cards)}개 카드 DB 저장 완료")
 
-    # 결과 출력
-    print(f"\n{'='*60}")
-    print(f"생성된 카드: {len(cards)}개")
-    print(f"{'='*60}\n")
-
-    for card in cards:
-        print(f"제목: {card.get('title', '')}")
-        print(f"핵심: {card.get('summary', '')}")
-        print(f"발언:")
-        for c in card.get("quotes", card.get("comments", [])):
-            party = c.get("party", "")
-            role = c.get("role", "")
-            label = c["speaker"]
-            if party:
-                label += f"({party}"
-                if role:
-                    label += f" {role}"
-                label += ")"
-            elif role:
-                label += f"[{role}]"
-            quote = c.get("quote", c.get("text", ""))
-            print(f"  - {label}: \"{quote}\"")
-        print(f"키워드: {', '.join(card.get('keywords', []))}")
-        print(f"인물: {', '.join(card.get('persons', []))}")
-        print(f"기관: {', '.join(card.get('orgs', []))}")
-        print(f"회의: {card.get('committee', '')} {card.get('meeting_date', '')}")
-        print(f"발언: {card.get('utterance_count', 0)}건")
-        print()
+        _print_cards(cards)
