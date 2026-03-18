@@ -10,7 +10,7 @@
   --surface: #ffffff;
   --sidebar-bg: #1c1917;
   --sidebar-text: #e7e5e4;
-  --sidebar-width: 240px;
+  --sidebar-width: 260px;
   --text: #1c1917;
   --text2: #57534e;
   --accent: #fdad00;
@@ -58,31 +58,30 @@ body {
 .stat-label { font-size: 0.75rem; color: #a8a29e; }
 .stat-value { font-size: 0.85rem; font-weight: 700; color: var(--accent); }
 
-/* 사이드바 회의 목록 */
-.meeting-list {
+/* 사이드바 위원회 목록 */
+.committee-list {
   display: flex; flex-direction: column; gap: 2px;
   margin-top: 0.3rem;
 }
-.meeting-item {
-  font-size: 0.72rem; padding: 6px 8px;
+.committee-item {
+  font-size: 0.75rem; padding: 7px 10px;
   background: #292524; color: #d6d3d1;
   border-radius: 6px; cursor: pointer;
   transition: all 0.15s; border: 1px solid transparent;
   line-height: 1.35;
+  display: flex; justify-content: space-between; align-items: center;
 }
-.meeting-item:hover { background: #44403c; border-color: #555; }
-.meeting-item.active {
+.committee-item:hover { background: #44403c; border-color: #555; }
+.committee-item.active {
   background: var(--accent); color: #1c1917;
   font-weight: 600;
 }
-.meeting-item .m-date {
-  font-size: 0.6rem; color: #78716c;
+.committee-item .c-name { flex: 1; }
+.committee-item .c-count {
+  font-size: 0.65rem; color: #78716c;
+  margin-left: 6px; white-space: nowrap;
 }
-.meeting-item.active .m-date { color: rgba(0,0,0,0.5); }
-.meeting-item .m-count {
-  font-size: 0.6rem; color: #78716c; float: right;
-}
-.meeting-item.active .m-count { color: rgba(0,0,0,0.5); }
+.committee-item.active .c-count { color: rgba(0,0,0,0.5); }
 
 /* 햄버거 (모바일) */
 .menu-toggle {
@@ -197,9 +196,6 @@ body {
   transition: all 0.15s;
 }
 .card-tags .tag:hover { opacity: 0.7; }
-.card-tags .tag-meeting {
-  background: var(--accent); color: #1a1a1a; font-weight: 600;
-}
 .card-tags .tag-person { background: var(--accent); color: #1a1a1a; }
 .card-tags .tag-org { background: #bbf7d0; color: #166534; }
 .card-tags .tag-keyword { background: #f3f4f6; color: #555; }
@@ -274,8 +270,8 @@ body {
   </div>
 
   <hr class="divider">
-  <div class="section-label">회의</div>
-  <div class="meeting-list" id="meeting-list"></div>
+  <div class="section-label">상임위원회</div>
+  <div class="committee-list" id="committee-list"></div>
 </aside>
 
 <div class="main">
@@ -286,7 +282,7 @@ body {
   <div class="controls">
     <div class="controls-inner">
       <input type="text" class="search-box" id="search" placeholder="검색: 제목, 인물, 기관, 키워드…">
-      <span class="search-reset" id="search-reset" onclick="resetAll()" style="display:none">검색 초기화</span>
+      <span class="search-reset" id="search-reset" onclick="resetAll()" style="display:none">초기화</span>
     </div>
     <div class="active-filters" id="active-filters"></div>
   </div>
@@ -299,69 +295,128 @@ body {
 
 <script>
 let ALL_CARDS = [];
-let activeMeeting = null; // 회의 필터 (하나만)
+let activeCommittee = null;
 let searchQuery = '';
 
+// ── URL 파라미터 ──
+function getUrlParams() {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    q: params.get('q') || '',
+    committee: params.get('committee') || '',
+  };
+}
+
+function setUrlParams() {
+  const params = new URLSearchParams();
+  if (searchQuery) params.set('q', searchQuery);
+  if (activeCommittee) params.set('committee', activeCommittee);
+
+  const qs = params.toString();
+  const url = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
+  history.replaceState(null, '', url);
+}
+
+// ── 데이터 로딩 ──
 async function loadCards() {
   try {
     const resp = await fetch('cards.json');
     ALL_CARDS = await resp.json();
     const meetings = new Set(ALL_CARDS.map(c => c.meeting_id));
-    document.getElementById('stat-cards').textContent = ALL_CARDS.length;
-    document.getElementById('stat-meetings').textContent = meetings.size;
-    buildMeetingList();
-    renderCards(ALL_CARDS);
+    document.getElementById('stat-cards').textContent = ALL_CARDS.length.toLocaleString();
+    document.getElementById('stat-meetings').textContent = meetings.size.toLocaleString();
+    buildCommitteeList();
+
+    // URL 파라미터 복원
+    const params = getUrlParams();
+    if (params.q) {
+      document.getElementById('search').value = params.q;
+      searchQuery = params.q.toLowerCase();
+    }
+    if (params.committee) {
+      activeCommittee = params.committee;
+      document.querySelectorAll('.committee-item').forEach(el => {
+        if (el.dataset.committee === activeCommittee) el.classList.add('active');
+      });
+    }
+
+    updateUI();
   } catch (e) {
     document.getElementById('cards').innerHTML =
       '<div class="empty">cards.json을 불러올 수 없습니다.<br>cardmaker/export_cards.py를 실행해주세요.</div>';
   }
 }
 
-function buildMeetingList() {
-  const meetingMap = {};
+// ── 사이드바: 상임위원회 목록 ──
+function buildCommitteeList() {
+  const committeeMap = {};
   ALL_CARDS.forEach(c => {
-    const key = `${c.meeting_date}|${c.committee || c.meeting_id}`;
-    if (!meetingMap[key]) {
-      meetingMap[key] = { date: c.meeting_date, committee: c.committee || c.meeting_id, count: 0 };
-    }
-    meetingMap[key].count++;
+    const name = c.committee || '기타';
+    if (!committeeMap[name]) committeeMap[name] = 0;
+    committeeMap[name]++;
   });
 
-  const list = document.getElementById('meeting-list');
-  Object.values(meetingMap)
-    .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
-    .forEach(mt => {
-      let dateLabel = mt.date || '날짜 미상';
-      try {
-        const [y, m, d] = mt.date.split('-');
-        dateLabel = `${y}년 ${parseInt(m)}월 ${parseInt(d)}일`;
-      } catch {}
-      const el = document.createElement('div');
-      el.className = 'meeting-item';
-      el.innerHTML = `${esc(mt.committee)}<br><span class="m-date">${dateLabel}</span> <span class="m-count">${mt.count}건</span>`;
-      el.dataset.key = `${mt.date}|${mt.committee}`;
-      el.onclick = () => toggleMeeting(el);
-      list.appendChild(el);
-    });
+  const sorted = Object.entries(committeeMap)
+    .sort((a, b) => b[1] - a[1]);
+
+  const list = document.getElementById('committee-list');
+  list.innerHTML = '';
+
+  // "전체" 버튼
+  const allEl = document.createElement('div');
+  allEl.className = 'committee-item' + (!activeCommittee ? ' active' : '');
+  allEl.innerHTML = `<span class="c-name">전체</span><span class="c-count">${ALL_CARDS.length.toLocaleString()}</span>`;
+  allEl.dataset.committee = '';
+  allEl.onclick = () => {
+    activeCommittee = null;
+    refreshCommitteeActive();
+    setUrlParams();
+    updateUI();
+    closeMobileSidebar();
+  };
+  list.appendChild(allEl);
+
+  sorted.forEach(([name, count]) => {
+    const el = document.createElement('div');
+    el.className = 'committee-item' + (activeCommittee === name ? ' active' : '');
+    el.dataset.committee = name;
+    el.innerHTML = `<span class="c-name">${esc(name)}</span><span class="c-count">${count}</span>`;
+    el.onclick = () => toggleCommittee(name);
+    list.appendChild(el);
+  });
 }
 
-function toggleMeeting(el) {
-  const key = el.dataset.key;
-  if (activeMeeting === key) {
-    activeMeeting = null;
-    el.classList.remove('active');
+function toggleCommittee(name) {
+  if (activeCommittee === name) {
+    activeCommittee = null;
   } else {
-    document.querySelectorAll('.meeting-item').forEach(t => t.classList.remove('active'));
-    activeMeeting = key;
-    el.classList.add('active');
+    activeCommittee = name;
   }
+  refreshCommitteeActive();
+  setUrlParams();
   updateUI();
+  closeMobileSidebar();
+}
+
+function refreshCommitteeActive() {
+  document.querySelectorAll('.committee-item').forEach(el => {
+    if (!activeCommittee && el.dataset.committee === '') {
+      el.classList.add('active');
+    } else if (el.dataset.committee === activeCommittee) {
+      el.classList.add('active');
+    } else {
+      el.classList.remove('active');
+    }
+  });
+}
+
+function closeMobileSidebar() {
   if (window.innerWidth <= 768) {
     document.querySelector('.sidebar').classList.remove('open');
   }
 }
 
-// 태그 클릭 → 검색창에 텍스트 넣기 (슬로우레터 방식)
+// ── 태그 클릭 → 검색 ──
 function searchEntity(name) {
   const searchBox = document.getElementById('search');
   if (searchBox.value === name) {
@@ -370,44 +425,43 @@ function searchEntity(name) {
     searchBox.value = name;
   }
   searchQuery = searchBox.value.trim().toLowerCase();
+  setUrlParams();
   updateUI();
 }
 
 function resetAll() {
   document.getElementById('search').value = '';
   searchQuery = '';
-  activeMeeting = null;
-  document.querySelectorAll('.meeting-item').forEach(t => t.classList.remove('active'));
+  activeCommittee = null;
+  refreshCommitteeActive();
+  setUrlParams();
   updateUI();
 }
 
+// ── 필터 + 렌더링 ──
 function updateUI() {
   const searchBox = document.getElementById('search');
   searchQuery = searchBox.value.trim().toLowerCase();
 
-  // 검색 초기화 버튼
   const resetBtn = document.getElementById('search-reset');
-  resetBtn.style.display = (searchQuery || activeMeeting) ? 'inline' : 'none';
+  resetBtn.style.display = (searchQuery || activeCommittee) ? 'inline' : 'none';
 
   // 활성 필터 칩
   const filtersEl = document.getElementById('active-filters');
   let chips = '';
-  if (activeMeeting) {
-    const [date, committee] = activeMeeting.split('|');
-    let dl = date;
-    try { const [y,m,d] = date.split('-'); dl = `${y}년 ${parseInt(m)}월 ${parseInt(d)}일`; } catch {}
-    chips += `<span class="active-filter-chip" onclick="clearMeeting()">${esc(dl + ' ' + committee)}</span>`;
+  if (activeCommittee) {
+    chips += `<span class="active-filter-chip" onclick="toggleCommittee('${esc(activeCommittee)}')">${esc(activeCommittee)}</span>`;
+  }
+  if (searchQuery) {
+    chips += `<span class="active-filter-chip" onclick="document.getElementById('search').value=''; searchQuery=''; setUrlParams(); updateUI();">"${esc(searchQuery)}"</span>`;
   }
   filtersEl.innerHTML = chips;
 
   // 필터링
   let filtered = ALL_CARDS;
 
-  if (activeMeeting) {
-    const [date, committee] = activeMeeting.split('|');
-    filtered = filtered.filter(c =>
-      c.meeting_date === date && (c.committee === committee || c.meeting_id === committee)
-    );
+  if (activeCommittee) {
+    filtered = filtered.filter(c => (c.committee || '기타') === activeCommittee);
   }
 
   if (searchQuery) {
@@ -422,12 +476,6 @@ function updateUI() {
   }
 
   renderCards(filtered);
-}
-
-function clearMeeting() {
-  activeMeeting = null;
-  document.querySelectorAll('.meeting-item').forEach(t => t.classList.remove('active'));
-  updateUI();
 }
 
 function formatMeetingLine(card) {
@@ -449,6 +497,7 @@ function renderCards(cards) {
     return;
   }
 
+  // 날짜 그룹
   const groups = {};
   cards.forEach(c => {
     const date = c.meeting_date || '날짜 미상';
@@ -482,17 +531,14 @@ function renderCards(cards) {
 
       html += `<div class="card" onclick="toggleCard(event, this)">`;
 
-      // 첫 줄: 날짜 + 위원회 + 전체회의
       const meetingLine = formatMeetingLine(card);
       html += `<div class="card-meeting-line">${esc(meetingLine)}</div>`;
 
-      // 제목 (마침표 보장)
       let title = card.title || '';
       if (title && !title.endsWith('.') && !title.endsWith('。')) title += '.';
       html += `<div class="card-title">${esc(title)}</div>`;
       html += `<div class="card-summary">${esc(card.summary)}</div>`;
 
-      // 태그 — meeting 태그 제거 (첫 줄로 이동)
       html += `<div class="card-tags">`;
       persons.forEach(p => {
         html += `<span class="tag tag-person" onclick="event.stopPropagation(); searchEntity('${esc(p)}')">${esc(p)}</span>`;
@@ -528,7 +574,7 @@ function renderCards(cards) {
 
   container.innerHTML = html;
   document.getElementById('stats').textContent =
-    `${cards.length}개 카드 · ${dates.length}개 날짜`;
+    `${cards.length.toLocaleString()}개 카드 · ${dates.length}개 날짜`;
 }
 
 function toggleCard(event, cardEl) {
@@ -541,8 +587,21 @@ function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
-// 이벤트
-document.getElementById('search').addEventListener('input', updateUI);
+// ── 이벤트 ──
+document.getElementById('search').addEventListener('input', function() {
+  setUrlParams();
+  updateUI();
+});
+
+// 브라우저 뒤로/앞으로 버튼
+window.addEventListener('popstate', () => {
+  const params = getUrlParams();
+  document.getElementById('search').value = params.q;
+  searchQuery = params.q.toLowerCase();
+  activeCommittee = params.committee || null;
+  refreshCommitteeActive();
+  updateUI();
+});
 
 // 모바일 사이드바 외부 클릭
 document.addEventListener('click', (e) => {
