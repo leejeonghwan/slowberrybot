@@ -1,0 +1,294 @@
+{
+  "timestamp": "2026-03-24T10:23:43.370701",
+  "summary": {
+    "total_signals": 100,
+    "total_bills": 76,
+    "top_signal_id": 21444,
+    "top_signal_score": 0.475,
+    "latest_bill": "조세특례제한법 일부개정법률안(대안)"
+  },
+  "signals_top20": [
+    {
+      "signal_id": 21444,
+      "year_week": "2025-W39",
+      "issue_id": "금융",
+      "target_entity": "금융감독원",
+      "composite_score": 0.475,
+      "salience": 1.0,
+      "pressure": 1.0,
+      "spread": 0.0
+    },
+    {
+      "signal_id": 19787,
+      "year_week": "2024-W27",
+      "issue_id": "법과질서",
+      "target_entity": "검찰",
+      "composite_score": 0.4283,
+      "salience": 1.0,
+      "pressure": 0.8341232227488152,
+      "spread": 0.46497352071792714
+    },
+    {
+      "signal_id": 19874,
+      "year_week": "2024-W30",
+      "issue_id": "문화/여가",
+      "target_entity": "방송통신위원회",
+      "composite_score": 0.4241,
+      "salience": 1.0,
+      "pressure": 1.0,
+      "spread": 0.1609640474436811
+    },
+    {
+      "signal_id": 21247,
+      "year_week": "2025-W34",
+      "issue_id": "문화/여가",
+      "target_entity": "방송통신위원회",
+      "composite_score": 0.4172,
+      "salience": 1.0,
+      "pressure": 0.7899613899613902,
+      "spread": 0.46497352071792714
+    },
+    {
+      "signal_id": 21014,
+      "year_week": "2025-W18",
+      "issue_id": "환경",
+      "target_entity": "환경부",
+      "composite_score": 0.4107,
+      "salience": 0.9103966798342173,
+      "pressure": 1.0,
+      "spread": 0.1609640474436811
+    },
+    {
+      "signal_id": 21955,
+      "year_week": "2026-W09",
+      "issue_id": "금융",
+      "target_entity": "이재명",
+      "composite_score": 0.4,
+      "salience": 1.0,
+      "pressure": 1.0,
+      "spread": 0.0
+    },
+    {
+      "signal_id": 21831,
+      "year_week": "2025-W52",
+      "issue_id": "법과질서",
+      "target_entity": "정청래",
+      "composite_score": 0.4,
+      "salience": 1.0,
+      "pressure": 1.0,
+      "spread": 0.0
+    },
+    {
+      "signal_id": 21770,
+      "year_week": "2025-W50",
+      "issue_id": "교육",
+      "target_entity": "추미애",
+      "composite_score": 0.4,
+      "salience": 1.0,
+      "pressure": 1.0,
+      "spread": 0.0
+    },
+    {
+      "signal_id": 21759,
+      "year_week": "2025-W50",
+      "issue_id": "법과질서",
+      "target_entity": "전직",
+      "composite_score": 0.4,
+      "salience": 1.0,
+      "pressure": 1.0,
+      "spread": 0.0
+    },
+    {
+      "signal_id": 21746,
+      "year_week": "2025-W50",
+      "issue_id": "법과질서",
+      "target_entity": "윤석열",
+      "composite_score": 0.4,
+      "salience": 1.0,
+      "pressure": 1.0,
+      "spread": 0.0
+    },
+    {
+      "signal_id": 21735,
+      "year_week": "2025-W49",
+      "issue_id": "금융",
+      "target_entity": "금융감독원",
+      "composite_score": 0.4,
+      "salience": 1.0,
+      "pressure": 1.0,
+      "spread": 0.0
+    },
+    {
+      "signal_id": 21728,
+      "year_week": "2025-W49",
+      "issue_id": "법과질서",
+      "target_entity": "윤재옥",
+      "composite_score": 0.4,
+      "salience": 1.0,
+      "pressure": 1.0,
+      "spread": 0.0
+    },
+    {
+      "signal_id": 21705,
+      "year_week": "2025-W48",
+      "issue_id": "교통",
+      "target_entity": "국토부",
+      "composite_score": 0.4,
+      "salience": 1.0,
+      "pressure": 1.0,
+      "spread": 0.0
+    },
+    {
+      "signal_id": 21631,
+      "year_week": "2025-W46",
+      "issue_id": "법과질서",
+      "target_entity": "대해서",
+      "composite_score": 0.4,
+      "salience": 1.0,
+      "pressure": 1.0,
+      "spread": 0.0
+    },
+    {
+      "signal_id": 21478,
+      "year_week": "2025-W39",
+      "issue_id": "법과질서",
+      "target_entity": "방통",
+      "composite_score": 0.4,
+      "salience": 1.0,
+      "pressure": 1.0,
+      "spread": 0.0
+    },
+    {
+      "signal_id": 21457,
+      "year_week": "2025-W39",
+      "issue_id": "법과질서",
+      "target_entity": "이재명",
+      "composite_score": 0.4,
+      "salience": 1.0,
+      "pressure": 1.0,
+      "spread": 0.0
+    },
+    {
+      "signal_id": 21447,
+      "year_week": "2025-W39",
+      "issue_id": "국방",
+      "target_entity": "하는",
+      "composite_score": 0.4,
+      "salience": 1.0,
+      "pressure": 1.0,
+      "spread": 0.0
+    },
+    {
+      "signal_id": 21410,
+      "year_week": "2025-W38",
+      "issue_id": "복지",
+      "target_entity": "국무",
+      "composite_score": 0.4,
+      "salience": 1.0,
+      "pressure": 1.0,
+      "spread": 0.0
+    },
+    {
+      "signal_id": 21112,
+      "year_week": "2025-W29",
+      "issue_id": "법과질서",
+      "target_entity": "행안부",
+      "composite_score": 0.4,
+      "salience": 1.0,
+      "pressure": 1.0,
+      "spread": 0.0
+    },
+    {
+      "signal_id": 20878,
+      "year_week": "2025-W11",
+      "issue_id": "정부운영",
+      "target_entity": "감사원",
+      "composite_score": 0.4,
+      "salience": 1.0,
+      "pressure": 1.0,
+      "spread": 0.0
+    }
+  ],
+  "bills_latest10": [
+    {
+      "agenda_id": "2217592",
+      "title": "조세특례제한법 일부개정법률안(대안)",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2217591",
+      "title": "경제안보를 위한 공급망 안정화 지원 기본법 일부개정법률안(대안)",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2217589",
+      "title": "국민체육진흥법 일부개정법률안(대안)",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2217404",
+      "title": "체육인 복지법 일부개정법률안(대안)",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2217403",
+      "title": "저작권법 일부개정법률안(대안)",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2217402",
+      "title": "도서관법 일부개정법률안(대안)",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2217401",
+      "title": "관광진흥법 일부개정법률안(대안)",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2217400",
+      "title": "관광기본법 일부개정법률안(대안)",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2217398",
+      "title": "정보통신공사업법 일부개정법률안(대안)",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2217397",
+      "title": "전파법 일부개정법률안(대안)",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    }
+  ]
+}
