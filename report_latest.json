@@ -1,11 +1,11 @@
 {
-  "timestamp": "2026-03-24T10:23:43.370701",
+  "timestamp": "2026-03-27T16:14:55.194708",
   "summary": {
-    "total_signals": 100,
+    "total_signals": 2210,
     "total_bills": 76,
+    "total_cards": 16815,
     "top_signal_id": 21444,
-    "top_signal_score": 0.475,
-    "latest_bill": "조세특례제한법 일부개정법률안(대안)"
+    "top_signal_score": 0.475
   },
   "signals_top20": [
     {
@@ -209,7 +209,7 @@
       "spread": 0.0
     }
   ],
-  "bills_latest10": [
+  "bills_all": [
     {
       "agenda_id": "2217592",
       "title": "조세특례제한법 일부개정법률안(대안)",
@@ -285,6 +285,534 @@
     {
       "agenda_id": "2217397",
       "title": "전파법 일부개정법률안(대안)",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2217396",
+      "title": "전기통신사업법 일부개정법률안(대안)",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2217395",
+      "title": "별정우체국법 일부개정법률안(대안)",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2217394",
+      "title": "방송법 일부개정법률안(대안)",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2217393",
+      "title": "인터넷 멀티미디어 방송사업법 일부개정법률안",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2217392",
+      "title": "신용협동조합법 일부개정법률안(대안)",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2216964",
+      "title": "산업안전보건법 일부개정법률안(대안)",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2216963",
+      "title": "환경오염시설의 통합관리에 관한 법률 일부개정법률안(대안)",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2216960",
+      "title": "산업재해보상보험법 일부개정법률안(대안)",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2216793",
+      "title": "폐기물관리법 일부개정법률안(대안)",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2216791",
+      "title": "대기환경보전법 일부개정법률안(대안)",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2216781",
+      "title": "도시 및 주거환경정비법 일부개정법률안(대안)",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2216778",
+      "title": "지역농산물 이용촉진 등 농산물 직거래 활성화에 관한 법률 일부개정법률안(대안)",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2216777",
+      "title": "양식산업발전법 일부개정법률안(대안)",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2216775",
+      "title": "소상공인의 일시적 등록기준 미달 시 제재처분 유예를 위한 목재의 지속가능한 이용에 관한 법률 등 4개 법률의 일부개정에 관한 법률안(대안)",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2216771",
+      "title": "농수산물의 원산지 표시 등에 관한 법률 일부개정법률안(대안)",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2216763",
+      "title": "한복문화산업 진흥법안(대안)",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2216762",
+      "title": "스포츠산업 진흥법 일부개정법률안(대안)",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2216761",
+      "title": "국어기본법 일부개정법률안(대안)",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2216296",
+      "title": "농어촌특별세법 일부개정법률안",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2215442",
+      "title": "방송법 일부개정법률안(대안)",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2215441",
+      "title": "방송미디어통신위원회의 설치 및 운영에 관한 법률 일부개정법률안(대안)",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2215405",
+      "title": "기계설비법 일부개정법률안(대안)",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2215109",
+      "title": "식품위생법 일부개정법률안(대안)",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2214934",
+      "title": "고위공직자범죄수사처 설치 및 운영에 관한 법률 일부개정법률안(대안)",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2214884",
+      "title": "지방자치법 일부개정법률안(대안)",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2214880",
+      "title": "지방자치단체 기금관리기본법 일부개정법률안(대안)",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2214855",
+      "title": "지방공무원법 일부개정법률안(대안)",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2214853",
+      "title": "공직선거법 일부개정법률안(대안)",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2214811",
+      "title": "예술인 복지법 일부개정법률안",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2214611",
+      "title": "마약류 관리에 관한 법률 일부개정법률안",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2214609",
+      "title": "약사법 일부개정법률안(대안)",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2214506",
+      "title": "국가유산기본법 일부개정법률안",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2214009",
+      "title": "국제문화행사 지원에 관한 법률안",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2213457",
+      "title": "양자과학기술 및 양자산업 육성에 관한 법률 일부개정법률안",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2213066",
+      "title": "체육시설의 설치·이용에 관한 법률 일부개정법률안",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2213004",
+      "title": "자원의 절약과 재활용촉진에 관한 법률 일부개정법률안",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2212717",
+      "title": "부동산 거래신고 등에 관한 법률 일부개정법률안",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2212691",
+      "title": "공연법 일부개정법률안",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2212493",
+      "title": "대통령기록물 관리에 관한 법률 일부개정법률안",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2212028",
+      "title": "목재의 지속가능한 이용에 관한 법률 일부개정법률안",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2211688",
+      "title": "6·25전쟁 무공훈장 수여 등에 관한 법률 일부개정법률안",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2211608",
+      "title": "우주개발 진흥법 일부개정법률안",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2211101",
+      "title": "이스포츠(전자스포츠) 진흥에 관한 법률 일부개정법률안",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2210772",
+      "title": "한식진흥법 일부개정법률안",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2210709",
+      "title": "체육시설의 설치·이용에 관한 법률 일부개정법률안",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2210374",
+      "title": "공직선거법 일부개정법률안",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2210333",
+      "title": "형사소송법 일부개정법률안",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2210118",
+      "title": "매장유산 보호 및 조사에 관한 법률 일부개정법률안",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2209858",
+      "title": "울산과학기술원법 일부개정법률안",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2209850",
+      "title": "대구경북과학기술원법 일부개정법률안",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2209847",
+      "title": "한국과학기술원법 일부개정법률안",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2209846",
+      "title": "광주과학기술원법 일부개정법률안",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2209676",
+      "title": "헌법재판소법 일부개정법률안(대안)",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2209297",
+      "title": "과학기술기본법 일부개정법률안",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2208967",
+      "title": "여성과학기술인 육성 및 지원에 관한 법률 일부개정법률안",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2208831",
+      "title": "선거관리위원회법 일부개정법률안",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2208212",
+      "title": "정보통신 진흥 및 융합 활성화 등에 관한 특별법 일부개정법률안",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2208115",
+      "title": "대체역의 편입 및 복무 등에 관한 법률 일부개정법률안",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2208001",
+      "title": "역사문화권 정비 등에 관한 특별법 일부개정법률안",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2207172",
+      "title": "국가공무원법 일부개정법률안",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2206640",
+      "title": "식품위생법 일부개정법률안",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2206566",
+      "title": "제대군인지원에 관한 법률 일부개정법률안",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2206165",
+      "title": "화장품법 일부개정법률안",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2203490",
+      "title": "긴급조치 피해자 민사재심 등에 관한 특별법안",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2203093",
+      "title": "문화산업진흥 기본법 일부개정법률안",
+      "agenda_type": "법안",
+      "propose_date": "",
+      "proposer": "",
+      "status": ""
+    },
+    {
+      "agenda_id": "2201362",
+      "title": "반도체산업 생태계 강화 및 지원을 위한 특별조치법안",
       "agenda_type": "법안",
       "propose_date": "",
       "proposer": "",
