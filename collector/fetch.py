@@ -61,8 +61,13 @@ class Collector:
         if extra_params:
             params.update(extra_params)
 
+        # User-Agent 헤더 추가 (2025.4 이후 필수)
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        }
+
         try:
-            resp = requests.get(url, params=params, timeout=60)
+            resp = requests.get(url, params=params, headers=headers, timeout=60)
             resp.raise_for_status()
             data = resp.json()
         except Exception as e:

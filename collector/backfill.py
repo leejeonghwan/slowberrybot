@@ -100,7 +100,10 @@ class BackfillCollector:
             base_params.update(params)
 
         try:
-            resp = requests.get(url, params=base_params, timeout=60)
+            headers = {
+                "User-Agent": "Mozilla/5.0 (compatible; AssemblySignalBot/1.0)"
+            }
+            resp = requests.get(url, params=base_params, headers=headers, timeout=60)
             resp.raise_for_status()
             data = resp.json()
         except requests.exceptions.RequestException as e:
