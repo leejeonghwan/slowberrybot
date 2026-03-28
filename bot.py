@@ -573,6 +573,96 @@ class Orchestrator:
 
         return "\n".join(["🔄 **전체 파이프라인 완료**", ""] + results)
 
+    def daily(self, notify_fn=None) -> str:
+        """
+        🌅 **일일 파이프라인** (Pi5 크론용)
+        
+        순서:
+        1. collect - 회의 목록 수집
+        2. backfill 7 7 - 신규 회의의 본문 HTML 수집 (Phase 7)
+        3. parse - 발언 파싱
+        4. pipeline - 태깅 → 신호 탐지 → 카드 생성
+        5. git commit & push - GitHub Pages 배포
+        """
+        import subprocess
+        _notify = notify_fn or (lambda m: logger.info(m))
+        results = []
+        start_time = datetime.now()
+
+        # 단계별 실행
+        steps = [
+            ("회의 목록 수집", lambda: self.collect()),
+            ("신규 회의 본문 수집", lambda: self.backfill(7, 7, _notify)),
+            ("발언 파싱", lambda: self.parse()),
+            ("전체 파이프라인 실행", lambda: self.full_pipeline()),
+        ]
+
+        for name, fn in steps:
+            _notify(f"⏳ {name} 시작...")
+            try:
+                result = fn()
+                results.append(f"✅ {name}: 완료")
+                _notify(f"✅ {name} 완료")
+                logger.info(f"[daily] {name}: OK")
+            except Exception as e:
+                results.append(f"❌ {name}: {e}")
+                _notify(f"❌ {name} 실패: {e}")
+                logger.error(f"[daily] {name} 실패: {e}")
+                # 실패해도 계속 진행
+
+        # GitHub 배포
+        _notify("📤 GitHub 배포 중...")
+        try:
+            # cards.json 내보내기
+            from cardmaker.export_cards import export_cards as export_fn
+            export_fn("docs/cards.json")
+            
+            # git add, commit, push
+            subprocess.run(
+                ["git", "add", "-A"],
+                cwd="/home/slownews/slowberrybot",
+                check=True,
+                capture_output=True
+            )
+            
+            result = subprocess.run(
+                ["git", "commit", "-m", f"data: 일일 업데이트 ({datetime.now().strftime('%Y-%m-%d %H:%M')}), 카드 생성 완료"],
+                cwd="/home/slownews/slowberrybot",
+                capture_output=True,
+                text=True
+            )
+            
+            if result.returncode == 0:
+                subprocess.run(
+                    ["git", "push", "origin", "main"],
+                    cwd="/home/slownews/slowberrybot",
+                    check=True,
+                    capture_output=True
+                )
+                results.append("✅ GitHub 배포: 완료")
+                _notify("✅ GitHub 배포 완료")
+            else:
+                # commit 내용이 없는 경우
+                if "nothing to commit" in result.stderr or result.stdout == "":
+                    results.append("ℹ️ GitHub: 변경사항 없음")
+                    _notify("ℹ️ GitHub: 변경사항 없음")
+                else:
+                    results.append(f"⚠️ GitHub: {result.stderr[:100]}")
+                    _notify(f"⚠️ GitHub commit 실패: {result.stderr[:100]}")
+        
+        except Exception as e:
+            results.append(f"❌ GitHub 배포: {e}")
+            _notify(f"❌ GitHub 배포 실패: {e}")
+            logger.error(f"[daily] GitHub 배포 실패: {e}")
+
+        elapsed = datetime.now() - start_time
+        summary = "\n".join([
+            f"🌅 **일일 파이프라인 완료** ({elapsed})",
+            ""
+        ] + results)
+        _notify(summary)
+        return summary
+
 
 # ═══════════════════════════════════════
 # 텔레그램 봇 핸들러
@@ -1037,6 +1127,7 @@ def run_cli():
         "rerun": lambda: orch.rerun(lambda msg: print(msg)),
         "analyze": lambda: print(orch.analyze_signals()),
         "grind": lambda: orch.grind(lambda msg: print(msg)),
+        "daily": lambda: orch.daily(lambda msg: print(msg)),
         "report": lambda: orch.report(args[0] if args else None),
         "signals": lambda: orch.signals(int(args[0]) if args else 10),
         "pipeline": lambda: orch.full_pipeline(),
