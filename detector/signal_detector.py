@@ -244,7 +244,7 @@ class SignalDetector:
 
         # 관련 위원회 회의 정보
         meetings = self.conn.execute("""
-            SELECT m.meeting_id, m.committee_name, m.meeting_date, m.title
+            SELECT m.meeting_id, m.committee_id, m.meeting_date, m.meeting_type
             FROM meeting m
             WHERE m.meeting_date BETWEEN ? AND ?
               AND (m.committee_id = ? OR ? = '')
@@ -258,8 +258,8 @@ class SignalDetector:
                 for t, s, r, a, _ in top_clauses
             ],
             "meetings": [
-                {"id": mid, "committee": cname, "date": mdate, "title": title}
-                for mid, cname, mdate, title in meetings
+                {"id": mid, "committee": cid, "date": mdate, "type": mtype}
+                for mid, cid, mdate, mtype in meetings
             ],
         }
 
