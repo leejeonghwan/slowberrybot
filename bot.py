@@ -614,8 +614,8 @@ class Orchestrator:
         _notify("📤 GitHub 배포 중...")
         try:
             # cards.json 내보내기
-            from cardmaker.export_cards import export_cards as export_fn
-            export_fn("docs/cards.json")
+            from cardmaker.export_cards import export_json
+            export_json(output="docs/cards.json")
             
             # git add, commit, push
             subprocess.run(
