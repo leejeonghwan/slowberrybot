@@ -6,6 +6,16 @@ const noticeText = document.getElementById("noticeText");
 const statusText = document.getElementById("statusText");
 const statusPill = document.getElementById("statusPill");
 const refreshButton = document.getElementById("refreshButton");
+const sectionNote = document.getElementById("sectionNote");
+
+const appConfig = window.DAUM_TRENDS_APP_CONFIG || {
+  dataUrl: "./api/trends",
+  refreshLabel: "지금 새로고침",
+  autoRefreshMs: 60_000,
+  sectionNote: "1분마다 자동 새로고침됩니다.",
+  statusMessage: "실시간 트렌드를 받아오는 중입니다.",
+  staleMessage: "마지막으로 배포된 데이터를 표시 중입니다.",
+};
 
 const formatter = new Intl.DateTimeFormat("ko-KR", {
   dateStyle: "medium",
@@ -13,6 +23,10 @@ const formatter = new Intl.DateTimeFormat("ko-KR", {
 });
 
 let refreshTimer = null;
+
+refreshButton.textContent = appConfig.refreshLabel;
+sectionNote.textContent = appConfig.sectionNote;
+statusText.textContent = appConfig.statusMessage;
 
 function escapeHtml(value) {
   return String(value)
@@ -95,7 +109,11 @@ async function loadTrends(force = false) {
   refreshButton.disabled = true;
 
   try {
-    const response = await fetch(`/api/trends${force ? "?force=1" : ""}`, {
+    const separator = appConfig.dataUrl.includes("?") ? "&" : "?";
+    const forceQuery = force && appConfig.dataUrl.includes("/api/")
+      ? `${separator}force=1`
+      : `${separator}ts=${Date.now()}`;
+    const response = await fetch(`${appConfig.dataUrl}${force ? forceQuery : ""}`, {
       cache: "no-store",
     });
     const payload = await response.json();
@@ -114,8 +132,8 @@ async function loadTrends(force = false) {
       setStatus(
         "error",
         payload.warning
-          ? `Daum 원본 응답이 실패해 마지막 성공 데이터를 표시 중입니다. (${payload.warning})`
-          : "Daum 원본 응답이 실패해 마지막 성공 데이터를 표시 중입니다."
+          ? `${appConfig.staleMessage} (${payload.warning})`
+          : appConfig.staleMessage
       );
     } else {
       setStatus("ok", `${payload.item_count}개의 키워드를 반영했습니다.`);
@@ -135,7 +153,9 @@ async function loadTrends(force = false) {
 refreshButton.addEventListener("click", () => loadTrends(true));
 
 loadTrends();
-refreshTimer = window.setInterval(() => loadTrends(false), 60_000);
+if (appConfig.autoRefreshMs > 0) {
+  refreshTimer = window.setInterval(() => loadTrends(false), appConfig.autoRefreshMs);
+}
 
 window.addEventListener("beforeunload", () => {
   if (refreshTimer !== null) {

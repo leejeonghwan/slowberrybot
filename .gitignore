@@ -20,6 +20,7 @@ db/backfill_progress.json
 logs/
 runtime/
 tmp/
+site/
 
 # 웹 앱 가상환경
 .venv-web/

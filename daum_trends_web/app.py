@@ -22,6 +22,11 @@ STATIC_ROOT = Path(__file__).resolve().parent / "static"
 STATIC_FILES = {
     "/": ("index.html", "text/html; charset=utf-8", "no-store"),
     "/static/style.css": ("style.css", "text/css; charset=utf-8", "public, max-age=300"),
+    "/static/config.js": (
+        "config.js",
+        "application/javascript; charset=utf-8",
+        "public, max-age=60",
+    ),
     "/static/app.js": (
         "app.js",
         "application/javascript; charset=utf-8",

@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Daum 실시간 트렌드 레이더</title>
-    <link rel="stylesheet" href="/static/style.css" />
+    <link rel="stylesheet" href="./static/style.css" />
   </head>
   <body>
     <div class="aurora aurora-one"></div>
@@ -70,11 +70,12 @@
             <p class="eyebrow">Top Keywords</p>
             <h2>현재 인기 검색어</h2>
           </div>
-          <p class="section-note">1분마다 자동 새로고침됩니다.</p>
+          <p id="sectionNote" class="section-note">1분마다 자동 새로고침됩니다.</p>
         </div>
         <ol id="trendList" class="trend-list" aria-live="polite"></ol>
       </section>
     </main>
-    <script src="/static/app.js"></script>
+    <script src="./static/config.js"></script>
+    <script src="./static/app.js"></script>
   </body>
 </html>

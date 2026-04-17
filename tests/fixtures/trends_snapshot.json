@@ -1,0 +1,30 @@
+{
+  "source_url": "https://m.daum.net/",
+  "updated_at_label": "오늘 11:12 기준",
+  "retrieved_at": "2026-04-17T11:13:56+09:00",
+  "notice": "실시간 트렌드 데이터는 안정화 기간 동안 베타(Beta) 서비스로 운영합니다.",
+  "stale": false,
+  "warning": "",
+  "item_count": 3,
+  "items": [
+    {
+      "rank": 1,
+      "keyword": "김가네",
+      "status": "하락",
+      "url": "https://m.search.daum.net/search?w=tot&DA=RT1&q=%EA%B9%80%EA%B0%80%EB%84%A4"
+    },
+    {
+      "rank": 2,
+      "keyword": "늑구 포획",
+      "status": "상승",
+      "url": "https://m.search.daum.net/search?w=tot&DA=RT1&q=%EB%8A%91%EA%B5%AC+%ED%8F%AC%ED%9A%8D"
+    },
+    {
+      "rank": 3,
+      "keyword": "베세토",
+      "status": "신규",
+      "url": "https://m.search.daum.net/search?w=tot&DA=RT1&q=%EB%B2%A0%EC%84%B8%ED%86%A0"
+    }
+  ]
+}
+
