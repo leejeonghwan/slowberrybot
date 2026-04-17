@@ -18,6 +18,11 @@ db/backfill_progress.json
 
 # 로그
 logs/
+runtime/
+tmp/
+
+# 웹 앱 가상환경
+.venv-web/
 
 # OS
 .DS_Store

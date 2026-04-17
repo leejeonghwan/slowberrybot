@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import json
 import re
 import threading
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import datetime, timedelta
 from html.parser import HTMLParser
+from pathlib import Path
 from typing import Dict, List, Optional
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -14,6 +16,8 @@ from urllib.request import Request, urlopen
 DAUM_TRENDS_URL = "https://m.daum.net/"
 DEFAULT_TIMEOUT_SECONDS = 10
 DEFAULT_TTL_SECONDS = 60
+DEFAULT_STALE_IF_ERROR_SECONDS = 6 * 60 * 60
+DEFAULT_STALE_RETRY_SECONDS = 30
 DEFAULT_USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -27,6 +31,10 @@ class TrendFetchError(RuntimeError):
 
 class TrendParseError(RuntimeError):
     """HTML 파싱 실패."""
+
+
+class TrendDataUnavailable(RuntimeError):
+    """신선한 데이터와 대체 데이터 모두 제공할 수 없는 상태."""
 
 
 @dataclass
@@ -44,6 +52,8 @@ class TrendSnapshot:
     retrieved_at: str
     notice: str
     items: List[TrendItem]
+    stale: bool = False
+    warning: str = ""
 
     def to_dict(self) -> Dict[str, object]:
         return {
@@ -51,9 +61,31 @@ class TrendSnapshot:
             "updated_at_label": self.updated_at_label,
             "retrieved_at": self.retrieved_at,
             "notice": self.notice,
+            "stale": self.stale,
+            "warning": self.warning,
             "item_count": len(self.items),
             "items": [asdict(item) for item in self.items],
         }
+
+    @classmethod
+    def from_dict(cls, payload: Dict[str, object]) -> "TrendSnapshot":
+        return cls(
+            source_url=str(payload.get("source_url", DAUM_TRENDS_URL)),
+            updated_at_label=str(payload.get("updated_at_label", "")),
+            retrieved_at=str(payload.get("retrieved_at", "")),
+            notice=str(payload.get("notice", "")),
+            stale=bool(payload.get("stale", False)),
+            warning=str(payload.get("warning", "")),
+            items=[
+                TrendItem(
+                    rank=int(item["rank"]),
+                    keyword=str(item["keyword"]),
+                    status=str(item["status"]),
+                    url=str(item["url"]),
+                )
+                for item in payload.get("items", [])
+            ],
+        )
 
 
 class _DaumTrendParser(HTMLParser):
@@ -216,29 +248,110 @@ def parse_trend_snapshot(html: str, source_url: str = DAUM_TRENDS_URL) -> TrendS
     )
 
 
-def fetch_trend_snapshot() -> TrendSnapshot:
-    return parse_trend_snapshot(fetch_trend_html())
+def fetch_trend_snapshot(
+    timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
+    user_agent: str = DEFAULT_USER_AGENT,
+) -> TrendSnapshot:
+    return parse_trend_snapshot(
+        fetch_trend_html(timeout_seconds=timeout_seconds, user_agent=user_agent)
+    )
 
 
 class TrendCache:
     """짧은 TTL 캐시로 과도한 호출을 막는다."""
 
-    def __init__(self, ttl_seconds: int = DEFAULT_TTL_SECONDS) -> None:
+    def __init__(
+        self,
+        ttl_seconds: int = DEFAULT_TTL_SECONDS,
+        state_path: Optional[Path] = None,
+        stale_if_error_seconds: int = DEFAULT_STALE_IF_ERROR_SECONDS,
+        fetcher=fetch_trend_snapshot,
+    ) -> None:
         self.ttl = timedelta(seconds=ttl_seconds)
+        self.stale_if_error = timedelta(seconds=stale_if_error_seconds)
+        self.stale_retry = timedelta(seconds=min(ttl_seconds or 0, DEFAULT_STALE_RETRY_SECONDS))
         self._lock = threading.Lock()
+        self._state_path = state_path
+        self._fetcher = fetcher
         self._snapshot = None  # type: Optional[TrendSnapshot]
         self._expires_at = None  # type: Optional[datetime]
+        self._load_state()
 
     def get_snapshot(self, force_refresh: bool = False) -> TrendSnapshot:
         with self._lock:
             now = datetime.now().astimezone()
             if (
-                force_refresh
-                or self._snapshot is None
-                or self._expires_at is None
-                or now >= self._expires_at
+                not force_refresh
+                and self._snapshot is not None
+                and self._expires_at is not None
+                and now < self._expires_at
             ):
-                self._snapshot = fetch_trend_snapshot()
-                self._expires_at = now + self.ttl
+                return self._snapshot
+
+            try:
+                snapshot = self._fetcher()
+            except (TrendFetchError, TrendParseError) as exc:
+                stale_snapshot = self._build_stale_snapshot(str(exc), now)
+                if stale_snapshot is not None:
+                    self._snapshot = stale_snapshot
+                    self._expires_at = now + self._retry_delay()
+                    return stale_snapshot
+                raise TrendDataUnavailable(str(exc))
+
+            self._snapshot = replace(snapshot, stale=False, warning="")
+            self._expires_at = now + self.ttl
+            self._persist_state(self._snapshot)
             return self._snapshot
 
+    def _retry_delay(self) -> timedelta:
+        if self.stale_retry.total_seconds() <= 0:
+            return timedelta(seconds=DEFAULT_STALE_RETRY_SECONDS)
+        return self.stale_retry
+
+    def _build_stale_snapshot(
+        self, message: str, now: datetime
+    ) -> Optional[TrendSnapshot]:
+        snapshot = self._snapshot
+        if snapshot is None:
+            return None
+
+        snapshot_time = self._snapshot_time(snapshot)
+        if snapshot_time is None or now - snapshot_time > self.stale_if_error:
+            return None
+
+        return replace(snapshot, stale=True, warning=message)
+
+    def _load_state(self) -> None:
+        if self._state_path is None or not self._state_path.exists():
+            return
+
+        try:
+            payload = json.loads(self._state_path.read_text(encoding="utf-8"))
+            snapshot = TrendSnapshot.from_dict(payload)
+            if not snapshot.items:
+                return
+        except Exception:
+            return
+
+        self._snapshot = replace(snapshot, stale=False, warning="")
+        snapshot_time = self._snapshot_time(snapshot)
+        if snapshot_time is None:
+            return
+        self._expires_at = snapshot_time + self.ttl
+
+    def _persist_state(self, snapshot: TrendSnapshot) -> None:
+        if self._state_path is None:
+            return
+
+        self._state_path.parent.mkdir(parents=True, exist_ok=True)
+        self._state_path.write_text(
+            json.dumps(snapshot.to_dict(), ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+
+    @staticmethod
+    def _snapshot_time(snapshot: TrendSnapshot) -> Optional[datetime]:
+        try:
+            return datetime.fromisoformat(snapshot.retrieved_at)
+        except ValueError:
+            return None

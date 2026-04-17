@@ -36,7 +36,7 @@ function statusClass(status) {
 function setStatus(kind, message) {
   statusPill.className = `status-pill ${kind}`;
   statusPill.textContent =
-    kind === "ok" ? "정상" : kind === "error" ? "오류" : "로딩 중";
+    kind === "ok" ? "정상" : kind === "error" ? "주의" : "로딩 중";
   statusText.textContent = message;
 }
 
@@ -110,7 +110,16 @@ async function loadTrends(force = false) {
     noticeText.textContent =
       payload.notice || "서비스 메모가 제공되지 않았습니다.";
     renderTrends(payload.items);
-    setStatus("ok", `${payload.item_count}개의 키워드를 반영했습니다.`);
+    if (payload.stale) {
+      setStatus(
+        "error",
+        payload.warning
+          ? `Daum 원본 응답이 실패해 마지막 성공 데이터를 표시 중입니다. (${payload.warning})`
+          : "Daum 원본 응답이 실패해 마지막 성공 데이터를 표시 중입니다."
+      );
+    } else {
+      setStatus("ok", `${payload.item_count}개의 키워드를 반영했습니다.`);
+    }
   } catch (error) {
     setStatus("error", error.message);
     trendList.innerHTML = `

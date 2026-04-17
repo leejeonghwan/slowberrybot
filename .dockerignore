@@ -1,0 +1,15 @@
+.git
+__pycache__/
+*.py[cod]
+.venv-web/
+venv/
+logs/
+runtime/
+tmp/
+db/
+*.sqlite
+*.db
+*.db-shm
+*.db-wal
+.env
+
