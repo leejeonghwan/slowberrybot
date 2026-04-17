@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Daum 실시간 트렌드 레이더</title>
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <div class="aurora aurora-one"></div>
+    <div class="aurora aurora-two"></div>
+    <main class="page-shell">
+      <section class="hero panel">
+        <div class="hero-copy">
+          <p class="eyebrow">Live Scraper</p>
+          <h1>Daum 실시간 트렌드 레이더</h1>
+          <p class="hero-description">
+            <code>m.daum.net</code>의 확장된 실시간 트렌드 영역을 주기적으로 읽어와
+            최신 키워드를 카드형으로 보여줍니다.
+          </p>
+        </div>
+        <div class="hero-actions">
+          <button id="refreshButton" class="primary-button" type="button">
+            지금 새로고침
+          </button>
+          <a
+            class="secondary-link"
+            href="https://m.daum.net/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            원본 페이지 열기
+          </a>
+        </div>
+      </section>
+
+      <section class="status-grid">
+        <article class="panel stat-card">
+          <p class="stat-label">기준 시각</p>
+          <strong id="updatedAtLabel" class="stat-value">불러오는 중…</strong>
+        </article>
+        <article class="panel stat-card">
+          <p class="stat-label">최근 수집</p>
+          <strong id="retrievedAtLabel" class="stat-value">대기 중</strong>
+        </article>
+        <article class="panel stat-card">
+          <p class="stat-label">변동 요약</p>
+          <strong id="trendSummary" class="stat-value">집계 중</strong>
+        </article>
+      </section>
+
+      <section class="panel info-strip">
+        <div>
+          <p class="info-label">스크래핑 메모</p>
+          <p id="noticeText" class="info-value">
+            다음에서 안내하는 서비스 메모를 불러오는 중입니다.
+          </p>
+        </div>
+        <div class="status-meta">
+          <span id="statusPill" class="status-pill loading">로딩 중</span>
+          <span id="statusText" class="status-text">
+            실시간 트렌드를 받아오는 중입니다.
+          </span>
+        </div>
+      </section>
+
+      <section class="panel trend-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Top Keywords</p>
+            <h2>현재 인기 검색어</h2>
+          </div>
+          <p class="section-note">1분마다 자동 새로고침됩니다.</p>
+        </div>
+        <ol id="trendList" class="trend-list" aria-live="polite"></ol>
+      </section>
+    </main>
+    <script src="/static/app.js"></script>
+  </body>
+</html>
