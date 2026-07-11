@@ -1,5 +1,5 @@
 
-:root{--ink:#14181C;--muted:#727A82;--line:rgba(20,24,28,.14);--signal:#E5442E;--paper:#F4F5F2;--card:#fff}
+:root{--ink:#14181C;--muted:#727A82;--line:rgba(20,24,28,.14);--signal:#1F3A63;--paper:#F4F5F2;--card:#fff}
 *{box-sizing:border-box}
 body{margin:0;background:var(--paper);color:var(--ink);line-height:1.75;
   font-family:"Pretendard","Apple SD Gothic Neo",system-ui,sans-serif}
@@ -56,11 +56,12 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);
   margin-bottom:14px;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
 .card .corners{list-style:none;margin:0;padding:0;font-size:15px;line-height:1.45}
 .card .corners li{padding:5px 0 5px 13px;position:relative}
-.card .corners li::before{content:"·";position:absolute;left:0;color:var(--signal);font-weight:700}
+.card .corners li::before{content:"·";position:absolute;left:0;color:var(--ink);font-weight:700}
 .card .corners li.empty::before{content:""}
 .card .back{background:var(--ink);color:#eef1f4;transform:rotateY(180deg);
   justify-content:space-between}
 .card .back .corners{color:#eef1f4}
+.card .back .corners li::before{color:#8ea6c8}
 .card .seemore{align-self:flex-end;margin-top:auto;font-weight:800;font-size:16px;color:#fff}
 @media print{.printart:not(.pt){display:none}}
 details.sec{border:1px solid var(--line);border-radius:8px;background:#fff;margin-bottom:12px;overflow:hidden}
@@ -79,12 +80,12 @@ details.sec .tools button:hover{background:var(--paper)}
 .secbody h3{font-size:15px}
 /* 코너 이름 알약 배지 (기사 본문의 *코너명* 줄) */
 .pill{display:inline-block;font-size:12.5px;font-weight:700;color:var(--signal);
-  background:rgba(229,68,46,.08);border:1px solid rgba(229,68,46,.28);
+  background:rgba(31,58,99,.08);border:1px solid rgba(31,58,99,.30);
   padding:3px 13px;border-radius:20px;margin:0 0 16px;letter-spacing:-.01em}
 /* 기사 섹션만 문단을 슬로우뉴스식 불렛으로(화면 표시만. 원문·다른 섹션은 그대로). */
 #sec-article .secbody p:not(.empty){position:relative;padding-left:19px;margin-bottom:13px}
 #sec-article .secbody p:not(.empty)::before{content:"•";position:absolute;left:3px;
-  top:0;color:var(--signal);font-weight:700}
+  top:0;color:var(--ink);font-weight:700}
 /* 기사 = 메타 덱(dek) 한 상자 + 꼭지별 상자(artbox) 분리. */
 #sec-article .secbody{padding:0}
 .dek{background:#fff;border:1px solid var(--line);border-radius:12px;padding:20px 24px;margin:0 0 18px}
