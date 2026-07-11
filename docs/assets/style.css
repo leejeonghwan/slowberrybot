@@ -83,6 +83,10 @@ details.sec .tools button:hover{background:var(--paper)}
 .secbody{padding:2px 18px 18px}
 .secbody h2{font-size:18px;margin:26px 0 8px}
 .secbody h3{font-size:15px}
+/* 코너 이름 알약 배지 (기사 본문의 *코너명* 줄) */
+.pill{display:inline-block;font-size:12.5px;font-weight:700;color:var(--signal);
+  background:rgba(229,68,46,.08);border:1px solid rgba(229,68,46,.28);
+  padding:3px 13px;border-radius:20px;margin:0 0 16px;letter-spacing:-.01em}
 /* 기사 섹션만 문단을 슬로우뉴스식 불렛으로(화면 표시만. 원문·다른 섹션은 그대로). */
 #sec-article .secbody p:not(.empty){position:relative;padding-left:19px;margin-bottom:13px}
 #sec-article .secbody p:not(.empty)::before{content:"•";position:absolute;left:3px;
