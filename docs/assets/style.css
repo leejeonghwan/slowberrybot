@@ -22,6 +22,9 @@ a:hover{text-decoration:underline}
 .nav a{font-weight:600;color:var(--muted)}
 .nav a.on{color:var(--ink)}
 .nav .sep{flex:1}
+.nav.ghost{border:0;margin-bottom:8px}
+.nav.ghost a{color:var(--paper)}
+.nav.ghost a:hover{color:var(--paper);text-decoration:none}
 .meta{color:var(--muted);font-size:13px;margin:-2px 0 26px;font-family:ui-monospace,Menlo,monospace}
 .runs a{display:block;padding:16px 18px;border:1px solid var(--line);border-radius:8px;
   background:#fff;margin-bottom:10px;text-decoration:none;color:var(--ink)}
