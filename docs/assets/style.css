@@ -51,6 +51,10 @@ details.sec .tools button:hover{background:var(--paper)}
 .secbody{padding:2px 18px 18px}
 .secbody h2{font-size:18px;margin:26px 0 8px}
 .secbody h3{font-size:15px}
+/* 기사 섹션만 문단을 슬로우뉴스식 불렛으로(화면 표시만. 원문·다른 섹션은 그대로). */
+#sec-article .secbody p:not(.empty){position:relative;padding-left:19px;margin-bottom:13px}
+#sec-article .secbody p:not(.empty)::before{content:"•";position:absolute;left:3px;
+  top:0;color:var(--signal);font-weight:700}
 @media print{
   .noprint,.nav,footer{display:none!important}
   body.printing details.sec:not(.pt){display:none}
