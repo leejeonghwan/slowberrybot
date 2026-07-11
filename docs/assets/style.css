@@ -37,6 +37,37 @@ a:hover{text-decoration:underline}
 footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);
   color:var(--muted);font-size:12px}
 .empty{color:var(--muted)}
+/* 플립 카드 그리드 (아카이브 목록) */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;margin-top:8px}
+.card{aspect-ratio:1/1;perspective:1200px}
+.card .flip{position:relative;width:100%;height:100%;transition:transform .5s;
+  transform-style:preserve-3d;cursor:pointer}
+.card:hover .flip,.card:focus-within .flip{transform:rotateY(180deg)}
+.card .face{position:absolute;inset:0;backface-visibility:hidden;border-radius:12px;
+  border:1px solid var(--line);padding:18px;display:flex;flex-direction:column;overflow:hidden}
+.card .front{background:#EAF0F6}
+.card.general .front{background:#FBF3E4}
+.card .tag{align-self:flex-start;font-size:11px;font-weight:700;color:var(--muted);
+  font-family:ui-monospace,Menlo,monospace;background:rgba(20,24,28,.06);
+  padding:3px 8px;border-radius:20px;margin-bottom:10px}
+.card .ctitle{font-size:16.5px;font-weight:800;line-height:1.35;letter-spacing:-.01em;
+  margin-bottom:10px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.card .corners{list-style:none;margin:0;padding:0;font-size:12.5px;color:#4a5560;
+  overflow:hidden}
+.card .corners li{padding:2px 0 2px 10px;position:relative;white-space:nowrap;
+  text-overflow:ellipsis;overflow:hidden}
+.card .corners li::before{content:"·";position:absolute;left:0;color:var(--signal)}
+.card .corners li.empty::before{content:""}
+.card .back{background:var(--ink);color:#fff;transform:rotateY(180deg);
+  justify-content:center;align-items:center;gap:14px}
+.card .acts{display:flex;flex-direction:column;gap:9px;width:100%;padding:0 10px}
+.card .acts .btn{display:block;text-align:center;padding:11px;border-radius:7px;
+  border:1px solid rgba(255,255,255,.28);background:transparent;color:#fff;
+  font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;text-decoration:none}
+.card .acts .btn:hover{background:rgba(255,255,255,.12)}
+.card .bkey{position:absolute;bottom:12px;font-family:ui-monospace,Menlo,monospace;
+  font-size:10px;color:rgba(255,255,255,.4)}
+@media print{.printart:not(.pt){display:none}}
 details.sec{border:1px solid var(--line);border-radius:8px;background:#fff;margin-bottom:12px;overflow:hidden}
 details.sec>summary{list-style:none;cursor:pointer;padding:14px 18px;display:flex;
   align-items:center;gap:10px;font-weight:700;font-size:16px;user-select:none}
