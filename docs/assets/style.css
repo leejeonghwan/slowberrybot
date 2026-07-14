@@ -102,6 +102,8 @@ details.sec .tools button:hover{background:var(--paper)}
 .dek-toc{list-style:none;padding-left:0}
 .dek-toc li{margin:5px 0}
 .dek-toc a{font-weight:700}
+.dek-cast{margin:2px 0 14px;padding-left:20px;font-size:15px}
+.dek-cast li{margin:3px 0}
 .artbox{background:#fff;border:1px solid var(--line);border-radius:12px;
   padding:20px 26px 6px;margin:0 0 16px;scroll-margin-top:16px}
 .artbox .pill{margin:0 0 10px}
