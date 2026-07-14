@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="ko"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>슬로우스크립트 대시보드</title>
+<style>
+:root{--ink:#14181C;--muted:#727A82;--line:rgba(20,24,28,.14);--navy:#1F3A63;--paper:#F4F5F2}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);line-height:1.6;
+  font-family:"Pretendard","Apple SD Gothic Neo",system-ui,sans-serif}
+.wrap{max-width:860px;margin:0 auto;padding:28px 20px 80px}
+h1{font-size:22px;font-weight:800;letter-spacing:-.02em;margin:0 0 4px}
+.sub{color:var(--muted);font-size:13px;margin:0 0 20px}
+input,button,select{font:inherit}
+.add{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.add input[type=url]{flex:1;min-width:240px;padding:11px 13px;border:1px solid var(--line);
+  border-radius:9px;background:#fff}
+.add button{padding:11px 18px;border:0;border-radius:9px;background:var(--navy);color:#fff;
+  font-weight:700;cursor:pointer}
+.add button:disabled{opacity:.5;cursor:default}
+label.opt{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:5px}
+.msg{font-size:13px;margin:6px 0 18px;min-height:18px}
+.msg.err{color:var(--navy)}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
+.col{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px}
+.col h2{font-size:13px;font-weight:800;color:var(--muted);margin:0 0 10px;letter-spacing:.02em}
+.job{border:1px solid var(--line);border-radius:9px;padding:10px 12px;margin-bottom:8px}
+.job .u{font-size:12.5px;word-break:break-all;color:var(--ink)}
+.job .m{font-size:11px;color:var(--muted);margin-top:3px;font-family:ui-monospace,Menlo,monospace}
+.job .x{float:right;border:0;background:0;color:var(--muted);cursor:pointer;font-size:14px;line-height:1;padding:0 0 0 6px}
+.job .x:hover{color:var(--navy)}
+.job.doing{border-color:var(--navy)}
+.pill{display:inline-block;font-size:11px;font-weight:700;padding:1px 8px;border-radius:20px;
+  background:rgba(31,58,99,.08);color:var(--navy);border:1px solid rgba(31,58,99,.25)}
+.empty{color:var(--muted);font-size:12.5px}
+.bar{display:flex;justify-content:space-between;align-items:center;margin:20px 0 8px}
+.bar a,.gearbtn{color:var(--muted);font-size:12px;cursor:pointer;background:0;border:0}
+#setup{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:20px}
+#setup input{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;margin:5px 0 12px}
+#setup .hint{font-size:12px;color:var(--muted);margin:0 0 10px}
+.footer{margin-top:40px;color:var(--muted);font-size:12px}
+a{color:var(--navy)}
+</style></head>
+<body><div class="wrap">
+<h1>슬로우스크립트 대시보드.</h1>
+<p class="sub">링크를 넣으면 파이 워커가 대본 → 기사까지 처리합니다. 진행 상황은 아래에서.</p>
+
+<div id="setup" hidden>
+  <div class="hint">처음 한 번만: 이 대시보드가 쓸 <b>큐 저장소</b>와 <b>깃허브 토큰</b>을 넣으세요.
+    토큰은 이 브라우저에만 저장됩니다(페이지에 안 박힘). 토큰 권한: 그 저장소의 contents 읽기/쓰기.</div>
+  <input id="s_owner" placeholder="깃허브 사용자 (예: leejeonghwan)">
+  <input id="s_repo" placeholder="큐 저장소 이름 (예: scriptdashboard)">
+  <input id="s_token" type="password" placeholder="깃허브 토큰 (github_pat_… 또는 ghp_…)">
+  <button onclick="saveCfg()" style="padding:10px 18px;border:0;border-radius:9px;background:var(--navy);color:#fff;font-weight:700;cursor:pointer">저장</button>
+</div>
+
+<div id="app" hidden>
+  <div class="add">
+    <input id="url" type="url" placeholder="유튜브 링크 붙여넣기…">
+    <label class="opt"><input type="checkbox" id="nofc"> 팩트체크 생략(빠르게)</label>
+    <button id="go" onclick="submit()">큐에 넣기</button>
+  </div>
+  <div class="msg" id="msg"></div>
+
+  <div class="bar">
+    <span style="font-size:13px;color:var(--muted)" id="updated">—</span>
+    <button class="gearbtn" onclick="openSetup()">⚙ 설정</button>
+  </div>
+  <div class="cols">
+    <div class="col"><h2>대기</h2><div id="c_wait"></div></div>
+    <div class="col"><h2>처리 중</h2><div id="c_doing"></div></div>
+    <div class="col"><h2>완료</h2><div id="c_done"></div></div>
+    <div class="col"><h2>실패</h2><div id="c_fail"></div></div>
+  </div>
+  <p class="footer">10초마다 자동 새로고침. 완료된 기사 링크는 텔레그램으로도 옵니다.</p>
+</div>
+
+<script>
+const LS = localStorage, $ = id => document.getElementById(id);
+function cfg(){ return {owner:LS.nf_owner, repo:LS.nf_repo, token:LS.nf_token}; }
+function openSetup(){ $("app").hidden=true; $("setup").hidden=false;
+  $("s_owner").value=LS.nf_owner||""; $("s_repo").value=LS.nf_repo||""; $("s_token").value=LS.nf_token||""; }
+function saveCfg(){
+  LS.nf_owner=$("s_owner").value.trim(); LS.nf_repo=$("s_repo").value.trim(); LS.nf_token=$("s_token").value.trim();
+  if(!LS.nf_owner||!LS.nf_repo||!LS.nf_token){ alert("셋 다 채워주세요."); return; }
+  $("setup").hidden=true; $("app").hidden=false; refresh();
+}
+async function gh(path, opts={}){
+  const c=cfg();
+  const r=await fetch(`https://api.github.com/repos/${c.owner}/${c.repo}/${path}`,
+    {...opts, headers:{Authorization:`Bearer ${c.token}`, Accept:"application/vnd.github+json", ...(opts.headers||{})}});
+  if(!r.ok) throw new Error(`${r.status} ${(await r.text()).slice(0,120)}`);
+  return r.status===204? null : r.json();
+}
+async function listDir(p){ try{ const a=await gh("contents/"+p); return Array.isArray(a)?a:[]; }catch(e){ return []; } }
+function b64utf8(s){ return btoa(unescape(encodeURIComponent(s))); }
+function unb64utf8(s){ return decodeURIComponent(escape(atob(s.replace(/\n/g,"")))); }
+
+async function submit(){
+  const url=$("url").value.trim();
+  if(!/youtu\.?be|youtube\.com/.test(url)){ setMsg("유튜브 링크가 아닌 것 같아요.", true); return; }
+  $("go").disabled=true; setMsg("큐에 넣는 중…");
+  try{
+    const name=new Date().toISOString().replace(/[-:T]/g,"").slice(0,14)+"_"+Math.floor(Math.random()*1000);
+    const lines=[url]; if($("nofc").checked) lines.push("--no-fact-check");
+    await gh(`contents/incoming/${name}.job`, {method:"PUT",
+      body:JSON.stringify({message:`enqueue ${name}`, content:b64utf8(lines.join("\n")+"\n")})});
+    $("url").value=""; setMsg("✅ 넣었습니다. 파이 워커가 곧 집습니다.");
+    refresh();
+  }catch(e){ setMsg("실패: "+e.message, true); }
+  $("go").disabled=false;
+}
+function setMsg(t,err){ const m=$("msg"); m.textContent=t; m.className="msg"+(err?" err":""); }
+function jname(f){ return f.name.replace(/\.job$/,""); }
+function jobCard(f, st, cls, del){
+  const s=st[jname(f)]||{};
+  const url=(s.url||"").replace(/^https?:\/\//,"");
+  const stage=s.stage? `<span class="pill">${s.stage}</span> ` : "";
+  const x=del? `<button class="x" title="큐에서 삭제" onclick="delJob('${f.path}','${f.sha}','${jname(f)}')">✕</button>` : "";
+  return `<div class="job ${cls||""}">${x}${stage}<div class="u">${url||jname(f)}</div>`+
+         `<div class="m">${jname(f)}${s.updated? " · "+s.updated.slice(11,16):""}</div></div>`;
+}
+async function delJob(path, sha, jn){
+  if(!confirm("이 작업을 큐에서 삭제할까요?")) return;
+  try{
+    await gh("contents/"+path, {method:"DELETE",
+      body:JSON.stringify({message:"dequeue "+jn, sha})});
+    try{ const s=await gh("contents/status/"+jn+".json");   // 상태 파일도 있으면 정리
+      await gh("contents/status/"+jn+".json", {method:"DELETE",
+        body:JSON.stringify({message:"rm status "+jn, sha:s.sha})});
+    }catch(e){}
+    setMsg("삭제했습니다.");
+    refresh();
+  }catch(e){ setMsg("삭제 실패: "+e.message, true); }
+}
+async function refresh(){
+  if(!cfg().token) return;
+  try{
+    const [inc,proc,done,fail,stf]=await Promise.all(
+      ["incoming","processing","done","failed","status"].map(listDir));
+    const st={};
+    for(const s of stf){ try{ const f=await gh("contents/status/"+s.name);
+      st[s.name.replace(/\.json$/,"")]=JSON.parse(unb64utf8(f.content)); }catch(e){} }
+    const jobs=a=>a.filter(x=>x.name.endsWith(".job"));
+    fill("c_wait", jobs(inc), st, "", true);              // 대기·실패는 삭제 가능
+    fill("c_doing", jobs(proc), st, "doing", false);
+    fill("c_done", jobs(done).slice(-8).reverse(), st, "", false);
+    fill("c_fail", jobs(fail).slice(-5).reverse(), st, "doing", true);
+    $("updated").textContent="갱신 "+new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  }catch(e){ setMsg("조회 실패: "+e.message+" (토큰·저장소 확인)", true); }
+}
+function fill(id, arr, st, cls, del){
+  $(id).innerHTML = arr.length? arr.map(f=>jobCard(f,st,cls,del)).join("") : '<div class="empty">없음</div>';
+}
+// 시작
+if(cfg().owner && cfg().repo && cfg().token){ $("app").hidden=false; refresh(); setInterval(refresh, 10000); }
+else openSetup();
+setInterval(()=>{ if(!$("app").hidden) refresh(); }, 10000);
+</script>
+</div></body></html>
