@@ -49,24 +49,32 @@ details#hist{margin-top:6px}
 details#hist summary{cursor:pointer;color:var(--muted);font-size:12.5px;padding:6px 0}
 .bar{display:flex;justify-content:space-between;align-items:center;margin:20px 0 8px}
 .bar a,.gearbtn{color:var(--muted);font-size:12px;cursor:pointer;background:0;border:0}
-#setup{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:20px}
-#setup input{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;margin:5px 0 12px}
-#setup .hint{font-size:12px;color:var(--muted);margin:0 0 10px}
 .footer{margin-top:40px;color:var(--muted);font-size:12px}
 a{color:var(--navy)}
+/* 앱 로그인 게이트 */
+.loginbox{max-width:360px;margin:12vh auto;background:#fff;border:1px solid var(--line);border-radius:12px;padding:24px}
+.loginbox h2{font-size:19px;font-weight:800;margin:0 0 4px}
+.loginbox>p{color:var(--muted);font-size:13px;margin:0 0 16px}
+.loginbox input{width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:9px;margin:0 0 10px;background:#fff}
+.loginbox button{width:100%;padding:11px;border:0;border-radius:9px;background:var(--navy);color:#fff;font-weight:700;cursor:pointer}
+.lg_err{color:var(--navy);font-size:13px;margin-top:10px;min-height:18px}
 </style></head>
 <body><div class="wrap">
+
+<div id="loginView" hidden>
+  <div class="loginbox">
+    <h2>슬로우스크립트 대시보드</h2>
+    <p>로그인이 필요합니다.</p>
+    <input id="lg_user" placeholder="아이디" autocomplete="username">
+    <input id="lg_pw" type="password" placeholder="비밀번호" autocomplete="current-password">
+    <button id="lg_btn">로그인</button>
+    <div class="lg_err" id="lg_err"></div>
+  </div>
+</div>
+
+<div id="dash" hidden>
 <h1>슬로우스크립트 대시보드.</h1>
 <p class="sub">링크를 넣으면 파이 워커가 대본 → 기사까지 처리합니다. 진행 상황은 아래에서.</p>
-
-<div id="setup" hidden>
-  <div class="hint">처음 한 번만: 이 대시보드가 쓸 <b>큐 저장소</b>와 <b>깃허브 토큰</b>을 넣으세요.
-    토큰은 이 브라우저에만 저장됩니다(페이지에 안 박힘). 토큰 권한: 그 저장소의 contents 읽기/쓰기.</div>
-  <input id="s_owner" placeholder="깃허브 사용자 (예: leejeonghwan)">
-  <input id="s_repo" placeholder="큐 저장소 이름 (예: scriptdashboard)">
-  <input id="s_token" type="password" placeholder="깃허브 토큰 (github_pat_… 또는 ghp_…)">
-  <button onclick="saveCfg()" style="padding:10px 18px;border:0;border-radius:9px;background:var(--navy);color:#fff;font-weight:700;cursor:pointer">저장</button>
-</div>
 
 <div id="app" hidden>
   <div class="add">
@@ -78,91 +86,96 @@ a{color:var(--navy)}
 
   <div class="bar">
     <span style="font-size:13px;color:var(--muted)" id="updated">—</span>
-    <button class="gearbtn" onclick="openSetup()">⚙ 설정</button>
+    <button class="gearbtn" onclick="logout()">로그아웃</button>
   </div>
-  <!-- 지금 도는 것이 주인공. 완료된 건 문제만 없으면 계속 볼 이유가 없어 접어둔다. -->
   <div id="now"></div>
   <div id="waitbox"></div>
   <details id="hist"><summary id="histsum">지난 작업</summary><div id="histbody"></div></details>
   <p class="footer">10초마다 자동 새로고침. 완료된 기사 링크는 텔레그램으로도 옵니다.</p>
 </div>
+</div>
 
 <script>
 const LS = localStorage, $ = id => document.getElementById(id);
-function cfg(){ return {owner:LS.nf_owner, repo:LS.nf_repo, token:LS.nf_token}; }
-function openSetup(){ $("app").hidden=true; $("setup").hidden=false;
-  $("s_owner").value=LS.nf_owner||""; $("s_repo").value=LS.nf_repo||""; $("s_token").value=LS.nf_token||""; }
-function saveCfg(){
-  LS.nf_owner=$("s_owner").value.trim(); LS.nf_repo=$("s_repo").value.trim(); LS.nf_token=$("s_token").value.trim();
-  if(!LS.nf_owner||!LS.nf_repo||!LS.nf_token){ alert("셋 다 채워주세요."); return; }
-  $("setup").hidden=true; $("app").hidden=false; refresh();
-}
-async function gh(path, opts={}){
-  const c=cfg();
-  const r=await fetch(`https://api.github.com/repos/${c.owner}/${c.repo}/${path}`,
-    {...opts, headers:{Authorization:`Bearer ${c.token}`, Accept:"application/vnd.github+json", ...(opts.headers||{})}});
-  if(!r.ok) throw new Error(`${r.status} ${(await r.text()).slice(0,120)}`);
-  return r.status===204? null : r.json();
-}
-async function listDir(p){ try{ const a=await gh("contents/"+p); return Array.isArray(a)?a:[]; }catch(e){ return []; } }
-function b64utf8(s){ return btoa(unescape(encodeURIComponent(s))); }
-function unb64utf8(s){ return decodeURIComponent(escape(atob(s.replace(/\n/g,"")))); }
 
+// 서빙 경로(/factory 등) 주입. FastAPI가 서빙하면 아래 토큰이 실제 경로로 치환된다.
+// 로컬 raw 파일(file://·http.server)로 열면 치환이 안 돼 그대로 남는다 → 앱 API가 없으니 안내만.
+const RAW_BASE = "__BASE_PATH__";
+const SERVED = !RAW_BASE.startsWith("__");
+const BASE = SERVED ? RAW_BASE : "";
+const AUTH_KEY = "slowscript_token";
+const tok = () => LS.getItem(AUTH_KEY) || "";
+
+// 앱 API 호출(깃허브 토큰은 서버에만; 브라우저는 앱 세션 토큰으로만 부른다).
+async function api(path, opts={}){
+  const r = await fetch(BASE+path, {...opts, headers:{
+    "Authorization":"Bearer "+tok(), "Content-Type":"application/json", ...(opts.headers||{})}});
+  if(r.status===401){ LS.removeItem(AUTH_KEY); showLogin(); throw new Error("세션 만료 — 다시 로그인하세요."); }
+  if(!r.ok){ let d=""; try{ d=(await r.json()).detail||""; }catch(e){} throw new Error(d||("HTTP "+r.status)); }
+  return r.status===204 ? null : r.json();
+}
+
+// ── 로그인 게이트 ──
+function showLogin(){ $("loginView").hidden=false; $("dash").hidden=true; }
+function startDash(){ $("loginView").hidden=true; $("dash").hidden=false; $("app").hidden=false; refresh(); }
+function logout(){ LS.removeItem(AUTH_KEY); showLogin(); }
+async function doLogin(){
+  $("lg_err").textContent="";
+  const u=$("lg_user").value.trim(), p=$("lg_pw").value;
+  if(!u||!p){ $("lg_err").textContent="아이디와 비밀번호를 입력하세요."; return; }
+  try{
+    const r=await fetch(BASE+"/login",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({username:u,password:p})});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(d.detail||("HTTP "+r.status));
+    LS.setItem(AUTH_KEY, d.token); startDash();
+  }catch(e){ $("lg_err").textContent="로그인 실패: "+e.message; }
+}
+$("lg_btn").addEventListener("click", doLogin);
+$("lg_pw").addEventListener("keydown", e=>{ if(e.key==="Enter") doLogin(); });
+
+// ── enqueue ──
+function setMsg(t,err){ const m=$("msg"); m.textContent=t; m.className="msg"+(err?" err":""); }
 async function submit(){
   const url=$("url").value.trim();
   if(!/youtu\.?be|youtube\.com/.test(url)){ setMsg("유튜브 링크가 아닌 것 같아요.", true); return; }
   $("go").disabled=true; setMsg("큐에 넣는 중…");
   try{
-    const name=new Date().toISOString().replace(/[-:T]/g,"").slice(0,14)+"_"+Math.floor(Math.random()*1000);
-    const lines=[url]; if($("nofc").checked) lines.push("--no-fact-check");
-    await gh(`contents/incoming/${name}.job`, {method:"PUT",
-      body:JSON.stringify({message:`enqueue ${name}`, content:b64utf8(lines.join("\n")+"\n")})});
-    $("url").value=""; setMsg("✅ 넣었습니다. 파이 워커가 곧 집습니다.");
-    refresh();
+    await api("/api/queue/enqueue",{method:"POST",
+      body:JSON.stringify({url, no_fact_check:$("nofc").checked})});
+    $("url").value=""; setMsg("✅ 넣었습니다. 파이 워커가 곧 집습니다."); refresh();
   }catch(e){ setMsg("실패: "+e.message, true); }
   $("go").disabled=false;
 }
-function setMsg(t,err){ const m=$("msg"); m.textContent=t; m.className="msg"+(err?" err":""); }
+
+// ── 렌더 ──
 function jname(f){ return f.name.replace(/\.job$/,""); }
 function jobCard(f, st, cls, del){
   const s=st[jname(f)]||{};
   const url=(s.url||"").replace(/^https?:\/\//,"");
   const stage=s.stage? `<span class="pill">${s.stage}</span> ` : "";
-  const x=del? `<button class="x" title="큐에서 삭제" onclick="delJob('${f.path}','${f.sha}','${jname(f)}')">✕</button>` : "";
+  const x=del? `<button class="x" title="큐에서 삭제" onclick="delJob('${jname(f)}')">✕</button>` : "";
   return `<div class="job ${cls||""}">${x}${stage}<div class="u">${url||jname(f)}</div>`+
          `<div class="m">${jname(f)}${s.updated? " · "+s.updated.slice(11,16):""}</div></div>`;
 }
-async function delJob(path, sha, jn){
+async function delJob(name){
   if(!confirm("이 작업을 큐에서 삭제할까요?")) return;
-  try{
-    await gh("contents/"+path, {method:"DELETE",
-      body:JSON.stringify({message:"dequeue "+jn, sha})});
-    try{ const s=await gh("contents/status/"+jn+".json");   // 상태 파일도 있으면 정리
-      await gh("contents/status/"+jn+".json", {method:"DELETE",
-        body:JSON.stringify({message:"rm status "+jn, sha:s.sha})});
-    }catch(e){}
-    setMsg("삭제했습니다.");
-    refresh();
+  try{ await api("/api/queue/dequeue",{method:"POST",body:JSON.stringify({name})});
+    setMsg("삭제했습니다."); refresh();
   }catch(e){ setMsg("삭제 실패: "+e.message, true); }
 }
-// 경과 시간: "12분째". 20~40분짜리 작업이라 언제 시작했는지가 곧 상태다.
 function since(iso){
   if(!iso) return "";
   const m=Math.floor((Date.now()-new Date(iso).getTime())/60000);
   return m<1? "방금" : (m<60? m+"분째" : Math.floor(m/60)+"시간 "+(m%60)+"분째");
 }
 async function refresh(){
-  if(!cfg().token) return;
+  if($("dash").hidden) return;
   try{
-    const [inc,proc,done,fail,stf]=await Promise.all(
-      ["incoming","processing","done","failed","status"].map(listDir));
-    const st={};
-    for(const s of stf){ try{ const f=await gh("contents/status/"+s.name);
-      st[s.name.replace(/\.json$/,"")]=JSON.parse(unb64utf8(f.content)); }catch(e){} }
-    const jobs=a=>a.filter(x=>x.name.endsWith(".job"));
+    const q=await api("/api/queue");
+    const st=q.status||{};
 
-    // ── 지금 처리 중: 크게, 단계와 경과를 함께
-    const doing=jobs(proc);
+    const doing=q.processing||[];
     $("now").innerHTML = doing.length? doing.map(f=>{
       const s=st[jname(f)]||{};
       const url=(s.url||"").replace(/^https?:\/\//,"");
@@ -173,27 +186,30 @@ async function refresh(){
         `<div class="m">${jname(f)}</div></div>`;
     }).join("") : '<div class="hero idle">지금 처리 중인 작업이 없습니다.</div>';
 
-    // ── 대기: 있을 때만, 작게
-    const wait=jobs(inc);
+    const wait=q.incoming||[];
     $("waitbox").innerHTML = wait.length?
       `<div class="mini"><b>대기 ${wait.length}</b>`+
       wait.map(f=>jobCard(f,st,"",true)).join("")+`</div>` : "";
 
-    // ── 지난 작업: 접어둔다. 실패가 있으면 펴서 보여준다.
-    const d=jobs(done).slice(-5).reverse(), fl=jobs(fail).slice(-5).reverse();
-    $("histsum").innerHTML = `지난 작업 — 완료 ${jobs(done).length}`
-      + (fl.length? ` · <b class="bad">실패 ${jobs(fail).length}</b>` : "");
+    const doneA=q.done||[], failA=q.failed||[];
+    const d=doneA.slice(-5).reverse(), fl=failA.slice(-5).reverse();
+    $("histsum").innerHTML = `지난 작업 — 완료 ${doneA.length}`
+      + (fl.length? ` · <b class="bad">실패 ${failA.length}</b>` : "");
     $("hist").open = fl.length>0;
     $("histbody").innerHTML =
       (fl.length? '<div class="mini"><b class="bad">실패</b>'+fl.map(f=>jobCard(f,st,"",true)).join("")+'</div>' : "")
       + (d.length? '<div class="mini"><b>완료</b>'+d.map(f=>jobCard(f,st,"",false)).join("")+'</div>' : "");
 
     $("updated").textContent="갱신 "+new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
-  }catch(e){ setMsg("조회 실패: "+e.message+" (토큰·저장소 확인)", true); }
+  }catch(e){ setMsg("조회 실패: "+e.message, true); }
 }
-// 시작
-if(cfg().owner && cfg().repo && cfg().token){ $("app").hidden=false; refresh(); setInterval(refresh, 10000); }
-else openSetup();
-setInterval(()=>{ if(!$("app").hidden) refresh(); }, 10000);
+
+// ── 시작 ──
+if(!SERVED){
+  showLogin();
+  $("lg_err").textContent="이 페이지는 앱으로 열어야 작동합니다(run_local.sh 또는 slownews.net/factory).";
+}else if(tok()){ startDash(); }
+else{ showLogin(); }
+setInterval(()=>{ if(!$("dash").hidden && !$("app").hidden) refresh(); }, 10000);
 </script>
 </div></body></html>
