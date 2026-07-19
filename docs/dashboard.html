@@ -82,6 +82,7 @@ a{color:var(--navy)}
     <label class="opt"><input type="checkbox" id="nofc"> 팩트체크 생략(빠르게)</label>
     <button id="go" onclick="submit()">큐에 넣기</button>
   </div>
+  <div class="msg" id="dupchk"></div>
   <div class="msg" id="msg"></div>
 
   <div class="bar">
@@ -106,6 +107,12 @@ const BASE = SERVED ? RAW_BASE : "";
 const AUTH_KEY = "slowscript_token";
 const tok = () => LS.getItem(AUTH_KEY) || "";
 
+// 발행된 회차(vid → 회차) — 링크 입력 시 중복 확인용. 아카이브 published.json을 앱이 프록시.
+const ARCHIVE = "https://leejeonghwan.github.io/slowberrybot/";
+let PUB = null;
+const esc = s => (s||"").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const vidOf = u => { const m=(u||"").match(/(?:v=|youtu\.be\/|\/live\/|\/shorts\/)([A-Za-z0-9_-]{11})/); return m?m[1]:""; };
+
 // 앱 API 호출(깃허브 토큰은 서버에만; 브라우저는 앱 세션 토큰으로만 부른다).
 async function api(path, opts={}){
   const r = await fetch(BASE+path, {...opts, headers:{
@@ -117,7 +124,7 @@ async function api(path, opts={}){
 
 // ── 로그인 게이트 ──
 function showLogin(){ $("loginView").hidden=false; $("dash").hidden=true; }
-function startDash(){ $("loginView").hidden=true; $("dash").hidden=false; $("app").hidden=false; refresh(); }
+function startDash(){ $("loginView").hidden=true; $("dash").hidden=false; $("app").hidden=false; loadPub(); refresh(); }
 function logout(){ LS.removeItem(AUTH_KEY); showLogin(); }
 async function doLogin(){
   $("lg_err").textContent="";
@@ -133,17 +140,29 @@ async function doLogin(){
 }
 $("lg_btn").addEventListener("click", doLogin);
 $("lg_pw").addEventListener("keydown", e=>{ if(e.key==="Enter") doLogin(); });
+$("url").addEventListener("input", checkDup);
 
 // ── enqueue ──
 function setMsg(t,err){ const m=$("msg"); m.textContent=t; m.className="msg"+(err?" err":""); }
+async function loadPub(){ try{ const d=await api("/api/published"); PUB=(d&&d.vids)||{}; checkDup(); }catch(e){ PUB=PUB||{}; } }
+function checkDup(){
+  const el=$("dupchk"); if(!el) return;
+  const v=vidOf($("url").value.trim());
+  const p=(v&&PUB)?PUB[v]:null;
+  if(p){ el.innerHTML='⚠️ 이미 발행됨 — '+esc(p.label)+(p.date?" ("+esc(p.date)+")":"")
+           +' · <a href="'+ARCHIVE+esc(p.path)+'" target="_blank" rel="noopener">보기</a>'; el.className="msg err"; }
+  else{ el.textContent=""; el.className="msg"; }
+}
 async function submit(){
   const url=$("url").value.trim();
   if(!/youtu\.?be|youtube\.com/.test(url)){ setMsg("유튜브 링크가 아닌 것 같아요.", true); return; }
+  const v=vidOf(url), p=(v&&PUB)?PUB[v]:null;
+  if(p && !confirm("이미 발행된 영상입니다 ("+p.label+(p.date?" "+p.date:"")+").\n그래도 큐에 넣을까요?")) return;
   $("go").disabled=true; setMsg("큐에 넣는 중…");
   try{
     await api("/api/queue/enqueue",{method:"POST",
       body:JSON.stringify({url, no_fact_check:$("nofc").checked})});
-    $("url").value=""; setMsg("✅ 넣었습니다. 파이 워커가 곧 집습니다."); refresh();
+    $("url").value=""; checkDup(); setMsg("✅ 넣었습니다. 파이 워커가 곧 집습니다."); refresh();
   }catch(e){ setMsg("실패: "+e.message, true); }
   $("go").disabled=false;
 }
