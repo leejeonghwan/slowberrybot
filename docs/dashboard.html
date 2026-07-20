@@ -124,7 +124,7 @@ async function api(path, opts={}){
 
 // ── 로그인 게이트 ──
 function showLogin(){ $("loginView").hidden=false; $("dash").hidden=true; }
-function startDash(){ $("loginView").hidden=true; $("dash").hidden=false; $("app").hidden=false; loadPub(); refresh(); }
+function startDash(){ $("loginView").hidden=true; $("dash").hidden=false; $("app").hidden=false; loadPub(true); refresh(); }
 function logout(){ LS.removeItem(AUTH_KEY); showLogin(); }
 async function doLogin(){
   $("lg_err").textContent="";
@@ -144,7 +144,16 @@ $("url").addEventListener("input", checkDup);
 
 // ── enqueue ──
 function setMsg(t,err){ const m=$("msg"); m.textContent=t; m.className="msg"+(err?" err":""); }
-async function loadPub(){ try{ const d=await api("/api/published"); PUB=(d&&d.vids)||{}; checkDup(); }catch(e){ PUB=PUB||{}; } }
+let _pubT = 0;
+async function loadPub(force){
+  if(!force && Date.now()-_pubT < 60000) return;   // 60초 스로틀(완료 직후 새 발행 반영)
+  try{ const d=await api("/api/published"); PUB=(d&&d.vids)||{}; _pubT=Date.now(); checkDup(); }catch(e){ PUB=PUB||{}; }
+}
+function artLink(f, st){        // 발행됐으면 '기사 보기' 링크(텔레그램 없이 대시보드에서 확인)
+  const s=st[jname(f)]||{}, v=vidOf(s.url||"");
+  const p=(v&&PUB)?PUB[v]:null;
+  return p? ` · <a href="${ARCHIVE}${esc(p.path)}" target="_blank" rel="noopener">기사 보기 →</a>` : "";
+}
 function checkDup(){
   const el=$("dupchk"); if(!el) return;
   const v=vidOf($("url").value.trim());
@@ -175,7 +184,7 @@ function jobCard(f, st, cls, del){
   const stage=s.stage? `<span class="pill">${s.stage}</span> ` : "";
   const x=del? `<button class="x" title="큐에서 삭제" onclick="delJob('${jname(f)}')">✕</button>` : "";
   return `<div class="job ${cls||""}">${x}${stage}<div class="u">${url||jname(f)}</div>`+
-         `<div class="m">${jname(f)}${s.updated? " · "+s.updated.slice(11,16):""}</div></div>`;
+         `<div class="m">${jname(f)}${s.updated? " · "+s.updated.slice(11,16):""}${artLink(f,st)}</div></div>`;
 }
 async function delJob(name){
   if(!confirm("이 작업을 큐에서 삭제할까요?")) return;
@@ -190,6 +199,7 @@ function since(iso){
 }
 async function refresh(){
   if($("dash").hidden) return;
+  loadPub();   // 60초 스로틀 — 완료된 회차의 '기사 보기' 링크를 붙이기 위해 발행목록 갱신
   try{
     const q=await api("/api/queue");
     const st=q.status||{};
