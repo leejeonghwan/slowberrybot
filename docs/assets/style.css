@@ -17,6 +17,11 @@ ul{margin:0 0 16px;padding-left:20px}
 li{margin:3px 0}
 hr{border:0;border-top:1px solid var(--line);margin:28px 0}
 a{color:var(--signal);text-decoration:none}
+.ts{font-family:ui-monospace,Menlo,monospace;font-size:11px;font-weight:600;color:var(--muted);
+  border:1px solid var(--line);border-radius:5px;padding:0 5px;margin-left:4px;
+  white-space:nowrap;text-decoration:none;vertical-align:1px}
+.ts::before{content:"▶";font-size:8px;margin-right:3px;opacity:.7}
+.ts:hover{color:var(--signal);border-color:var(--signal)}
 a:hover{text-decoration:underline}
 .nav{display:flex;gap:14px;align-items:center;font-size:14px;margin-bottom:24px;
   padding-bottom:12px;border-bottom:1px solid var(--line);flex-wrap:wrap}
