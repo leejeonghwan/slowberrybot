@@ -118,6 +118,8 @@ details.sec .tools button:hover{background:var(--paper)}
   top:0;color:var(--ink);font-weight:700}
 /* 기사 = 메타 덱(dek) 한 상자 + 꼭지별 상자(artbox) 분리. */
 #sec-article .secbody{padding:0}
+/* 기사 섹션은 padding:0이라 빈 자리표시자가 왼쪽 끝에 붙는다 — 다른 섹션(18px)과 줄맞춤 */
+#sec-article .secbody>.empty{padding-left:18px}
 .dek{background:#fff;border:1px solid var(--line);border-radius:12px;padding:20px 24px;margin:0 0 18px}
 .dek-row{margin:0 0 6px;font-size:15px}
 .dek-k{display:inline-block;min-width:64px;font-weight:700;color:var(--muted);font-size:13px}
