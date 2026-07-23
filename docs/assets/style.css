@@ -24,6 +24,10 @@ a{color:var(--signal);text-decoration:none}
 .ts::before{content:"▶";font-size:7px;margin-right:2px;opacity:.6}
 .ts:hover{color:var(--signal);border-color:var(--signal)}
 body.hide-ts .ts{display:none}
+/* 풀 스크립트 시각: 항상 보이는 클릭 링크(토글과 무관) */
+.tstime{text-decoration:none}
+.tstime code{cursor:pointer;transition:color .12s}
+.tstime:hover code{color:var(--signal)}
 .fabmenu{position:fixed;right:16px;bottom:16px;display:flex;flex-direction:column;gap:8px;z-index:60}
 .fab{width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:#fff;
   color:var(--muted);font-size:15px;font-weight:700;cursor:pointer;
@@ -74,10 +78,10 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);
 .card .ctitle{font-size:27px;font-weight:800;line-height:1.22;letter-spacing:-.02em;
   margin-bottom:4px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .card .cdate{font-size:14px;font-weight:600;color:var(--muted);letter-spacing:-.01em;margin:0 0 12px}
-/* 앞면: 큰 제목 아래 기사 제목 3개 */
+/* 앞면: 큰 제목 아래 기사 제목 5개(한 줄 넘치면 …) */
 .card .fronts{list-style:none;margin:auto 0 0;padding:0;font-size:14px;line-height:1.4;
-  color:#3a4654;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-.card .fronts li{padding:3px 0 3px 12px;position:relative}
+  color:#3a4654;overflow:hidden}
+.card .fronts li{padding:3px 0 3px 12px;position:relative;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .card .fronts li::before{content:"·";position:absolute;left:0;color:var(--ink);font-weight:700}
 /* 뒷면: 중간 제목 5개(살짝 큰 폰트) */
 .card .corners{list-style:none;margin:0;padding:0;font-size:16.5px;line-height:1.4}
