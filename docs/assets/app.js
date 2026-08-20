@@ -28,7 +28,7 @@ function copyCard(key){
   var q=new URLSearchParams(location.search).get('print');
   if(q) window.addEventListener('load',function(){setTimeout(function(){pdfSec(q);},350);});
 })();
-// 떠있는 메뉴: 타임스탬프 표시 토글(기본 꺼짐, 브라우저에 기억) + 맨 위로.
+// 떠있는 메뉴: 타임스탬프 표시 토글(기본 켜짐, 브라우저에 기억) + 맨 위로.
 function slowTop(){ window.scrollTo({top:0,behavior:'smooth'}); }
 function slowToggleTS(){
   var nowShow = document.body.classList.toggle('hide-ts') === false;  // 방금 hide-ts를 뗐으면 표시
@@ -36,8 +36,8 @@ function slowToggleTS(){
   var b=document.getElementById('fab-ts'); if(b) b.classList.toggle('on', nowShow);
 }
 (function(){
-  // 기본 꺼짐: 서버가 body.hide-ts로 렌더. 사용자가 켠 적('1')이 있으면 표시로 되돌린다.
-  try{ if(localStorage.getItem('ts_show')==='1') document.body.classList.remove('hide-ts'); }catch(e){}
+  // 기본 켜짐: 서버가 hide-ts 없이 렌더. 사용자가 **끈 적('0')**이 있으면 그 선택을 존중한다.
+  try{ if(localStorage.getItem('ts_show')==='0') document.body.classList.add('hide-ts'); }catch(e){}
   window.addEventListener('load',function(){
     var b=document.getElementById('fab-ts'); if(!b) return;
     if(!document.querySelector('.ts')){ b.style.display='none'; return; }  // 타임스탬프 없는 페이지면 숨김
