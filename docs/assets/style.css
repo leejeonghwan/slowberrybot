@@ -40,6 +40,12 @@ body.hide-ts .ts{display:none}
 .fab-wide.on{background:var(--signal);color:#fff;border-color:var(--signal)}
 .fab-wide.on::before{opacity:1}
 @media print{.fabmenu{display:none}}
+/* 좁은 화면(폰): 로고·제목과 겹치는 장식 라벨을 숨겨 세로 공간을 아낀다.
+   섹션 부제('주제별 정리.')와 메타의 아카이브 이름이 대상이다. 내용은 안 건드린다. */
+@media (max-width:640px){
+  .only-wide{display:none}
+  .sec>summary .sub{display:none}
+}
 a:hover{text-decoration:underline}
 .nav{display:flex;gap:14px;align-items:center;font-size:14px;margin-bottom:24px;
   padding-bottom:12px;border-bottom:1px solid var(--line);flex-wrap:wrap}
