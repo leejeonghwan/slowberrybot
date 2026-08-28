@@ -1,0 +1,18 @@
+# 특허 출원 전까지 검색엔진 색인을 막는다. 메신저 미리보기만 허용.
+User-agent: Twitterbot
+Allow: /
+
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: TelegramBot
+Allow: /
+
+User-agent: kakaotalk-scrap
+Allow: /
+
+User-agent: Slackbot-LinkExpanding
+Allow: /
+
+User-agent: *
+Disallow: /
