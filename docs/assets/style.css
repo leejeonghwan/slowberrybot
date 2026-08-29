@@ -69,6 +69,14 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);
 .empty{color:var(--muted)}
 /* 플립 카드 그리드 (아카이브 목록). PC에서 가로 3개. */
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:18px;margin-top:8px}
+/* 목록 정렬 전환. 기본은 영상 날짜순, 오른쪽에서 작업일순으로 넘어간다. */
+.sortbar{display:flex;justify-content:flex-end;align-items:center;gap:10px;
+  margin:-6px 0 16px;font-size:.86rem}
+.sortbar .cur{color:var(--muted)}
+.sortbar a{color:var(--signal);text-decoration:none;border-bottom:1px solid transparent;
+  padding-bottom:1px}
+.sortbar a:hover{border-bottom-color:var(--signal)}
+@media(max-width:560px){.sortbar{justify-content:space-between;font-size:.8rem}}
 .pager{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:28px 0 8px}
 .pager .pg{min-width:34px;text-align:center;padding:7px 10px;border:1px solid var(--line);
   border-radius:8px;color:var(--ink);text-decoration:none;font-size:14px}
