@@ -36,8 +36,13 @@ function slowToggleTS(){
   var b=document.getElementById('fab-ts'); if(b) b.classList.toggle('on', nowShow);
 }
 (function(){
-  // 기본 켜짐: 서버가 hide-ts 없이 렌더. 사용자가 **끈 적('0')**이 있으면 그 선택을 존중한다.
-  try{ if(localStorage.getItem('ts_show')==='0') document.body.classList.add('hide-ts'); }catch(e){}
+  // 서버가 정한 기본값(프로파일별로 다르다)을 사용자의 저장된 선택이 덮는다.
+  // 국정감사는 서버가 hide-ts를 붙여 내지만, 켠 적('1')이 있으면 그 선택이 이긴다.
+  try{
+    var v=localStorage.getItem('ts_show');
+    if(v==='0') document.body.classList.add('hide-ts');
+    else if(v==='1') document.body.classList.remove('hide-ts');
+  }catch(e){}
   window.addEventListener('load',function(){
     var b=document.getElementById('fab-ts'); if(!b) return;
     if(!document.querySelector('.ts')){ b.style.display='none'; return; }  // 타임스탬프 없는 페이지면 숨김
