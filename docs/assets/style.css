@@ -3,14 +3,18 @@
 /* 폭과 본문 크기는 여기서만 만진다(2026-09-02). 한글 본문은 한 줄 40~45자가 읽기 좋은데,
    1180px에 16px이면 70자가 넘어 눈이 줄을 잃는다. 폭을 줄이고 글자를 키워 그 근처로 맞춘다.
    제목·UI는 px로 고정돼 있어 본문만 키우면 대비가 무너지므로 함께 올렸다. */
---wrap:780px;      /* 목록·일반 페이지 (옛 840) */
---wrap-wide:1000px;/* 기사 페이지     (옛 1180) */
---fs:17px}         /* 본문 기본       (옛 16 — 브라우저 기본값) */
+--wrap:780px;      /* 좁은 페이지(랜딩 등) */
+--wrap-wide:1000px;/* **기사** — 글이라 좁아야 읽힌다 (옛 1180) */
+--wrap-list:1180px;/* **목록** — 카드는 넓어야 한다. 좁히면 3열이 2열로 떨어지고,
+                      카드가 aspect-ratio:1/1이라 세로까지 늘어 가운데가 크게 빈다
+                      (2026-09-02에 그렇게 깨져 보였다). 목록과 기사는 다른 값을 쓴다. */
+--fs:17px}         /* 본문 기본       (옛 16 — 지정이 없어 브라우저 기본값이었다) */
 *{box-sizing:border-box}
 body{margin:0;background:var(--paper);color:var(--ink);line-height:1.75;font-size:var(--fs);
   font-family:"Pretendard","Apple SD Gothic Neo",system-ui,sans-serif}
 .wrap{max-width:var(--wrap);margin:0 auto;padding:32px 22px 80px}
 .wrap.wide{max-width:var(--wrap-wide)}
+.wrap.list{max-width:var(--wrap-list)}
 h1{font-size:28px;font-weight:800;letter-spacing:-.02em;line-height:1.3;margin:0 0 6px}
 h2{font-size:22px;font-weight:700;letter-spacing:-.01em;margin:38px 0 10px;
   padding-top:20px;border-top:1px solid var(--line)}
