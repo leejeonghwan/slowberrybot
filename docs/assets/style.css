@@ -123,7 +123,18 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);
 .card .corners li.empty::before{content:""}
 .card .back{background:var(--ink);color:#eef1f4;transform:rotateY(180deg);
   justify-content:space-between}
-.card .back .corners{color:#eef1f4}
+/* 뒷면 넘침 방지 — **항목 5개 또는 8줄, 먼저 닿는 쪽**에서 자른다.
+   개수는 마크업이 `subt[:5]`로 이미 막는다. 여기서는 줄 수를 막는다. 카드 폭을 줄이며
+   3열로 가니 제목이 길면 5개가 카드 밖으로 흘렀다(2026-09-03). 짧은 제목이면 5개가
+   그대로 다 보이고, 길면 8줄에서 끊긴다. 잘린 자리는 아래를 흐려 더 있음을 알린다. */
+.card .back .corners{color:#eef1f4;overflow:hidden;
+  --cl:1.4em;                       /* 한 줄 높이(li의 line-height와 같게 둔다) */
+  max-height:calc(var(--cl) * 8 + 10px);
+  -webkit-mask-image:linear-gradient(#000 calc(100% - 20px),transparent);
+  mask-image:linear-gradient(#000 calc(100% - 20px),transparent)}
+/* 한 항목이 8줄을 통째로 먹지 않게. 세 줄을 넘으면 그 줄에서 말줄임으로 닫는다. */
+.card .back .corners li{display:-webkit-box;-webkit-line-clamp:3;
+  -webkit-box-orient:vertical;overflow:hidden}
 .card .back .corners li::before{color:#8ea6c8}
 .card .seemore{align-self:flex-end;margin-top:auto;font-weight:800;font-size:16px;color:#fff}
 @media print{.printart:not(.pt){display:none}}
