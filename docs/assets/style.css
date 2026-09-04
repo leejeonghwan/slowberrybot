@@ -127,12 +127,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);
    개수는 마크업이 `subt[:5]`로 이미 막는다. 여기서는 줄 수를 막는다. 카드 폭을 줄이며
    3열로 가니 제목이 길면 5개가 카드 밖으로 흘렀다(2026-09-03). 짧은 제목이면 5개가
    그대로 다 보이고, 길면 8줄에서 끊긴다. 잘린 자리는 아래를 흐려 더 있음을 알린다. */
-/* **카드에 남은 자리에 맞춘다.** 8줄은 상한일 뿐이고, 카드가 그보다 작으면 그 자리에
-   맞춰 줄어야 한다. 카드는 `aspect-ratio:1/1`이라 폭이 줄면 높이도 줄어드는데, 고정
-   높이만 걸어 두면 「보기 →」를 밀어내고 카드 밖으로 흘렀다(2026-09-03 뉴스공장 목록).
-   flex 자식에 `min-height:0`을 줘야 실제로 줄어든다 — 기본값 auto는 안 줄어든다. */
 .card .back .corners{color:#eef1f4;overflow:hidden;
-  flex:0 1 auto;min-height:0;
   --cl:1.4em;                       /* 한 줄 높이(li의 line-height와 같게 둔다) */
   max-height:calc(var(--cl) * 8 + 10px);
   -webkit-mask-image:linear-gradient(#000 calc(100% - 20px),transparent);
