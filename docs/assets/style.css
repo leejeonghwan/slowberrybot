@@ -164,6 +164,11 @@ details.sec .tools button:hover{background:var(--paper)}
 .secbody a.jump{color:inherit;text-decoration:none;border-bottom:1px solid rgba(20,24,28,.3)}
 .secbody a.jump:hover{border-bottom-color:var(--signal);color:var(--signal)}
 .secbody h3{font-size:16.5px}
+/* 슬로우리포트: 리포트 제목과 꼭지 제목을 기사 상자(artbox)만큼 키운다(기자님 2026-10-14). 뉴스공장 다이제스트는 해당 없음. */
+details.rep .secbody>h4:first-child{font-size:30px;font-weight:800;line-height:1.3;letter-spacing:-.02em;color:var(--ink);margin:16px 0 18px}
+details.rep .secbody h3{font-size:21px;font-weight:700;color:var(--ink);margin:30px 0 10px;scroll-margin-top:14px}
+details.rep .secbody h3.dg{font-size:17px;color:#333}
+@media(max-width:560px){details.rep .secbody>h4:first-child{font-size:24px}details.rep .secbody h3{font-size:19px}}
 /* 코너 이름 알약 배지 (기사 본문의 *코너명* 줄) */
 .pill{display:inline-block;font-size:12.5px;font-weight:700;color:var(--signal);
   background:rgba(31,58,99,.08);border:1px solid rgba(31,58,99,.30);
